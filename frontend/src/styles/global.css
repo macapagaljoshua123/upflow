@@ -1,0 +1,115 @@
+:root {
+  --canvas: #0B0E14;
+  --surface: #12151D;
+  --surface-2: #1A1F2B;
+  --paper: #F5F3EC;
+  --paper-2: #EBE8DD;
+  --ink: #ECEAE2;
+  --ink-dim: #9BA3AF;
+  --ink-on-paper: #14161B;
+  --ink-on-paper-dim: #5B5F66;
+  --flow: #5EE6C5;
+  --flow-dim: #3CA992;
+  --coral: #FF8A65;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-on-paper: rgba(20, 22, 27, 0.1);
+
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-body);
+  scroll-behavior: smooth;
+}
+
+#root { min-height: 100vh; }
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+p { margin: 0; line-height: 1.6; }
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+}
+
+img { max-width: 100%; display: block; }
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 26px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--flow);
+  outline-offset: 3px;
+}
+.btn-primary {
+  background: var(--flow);
+  color: #06231C;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(94, 230, 197, 0.25); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { border-color: var(--flow); color: var(--flow); }
+
+.btn-ghost-paper {
+  background: transparent;
+  color: var(--ink-on-paper);
+  border: 1px solid var(--border-on-paper);
+}
+.btn-ghost-paper:hover { border-color: var(--coral); color: var(--coral); }
+
+.btn-dark {
+  background: var(--ink-on-paper);
+  color: var(--paper);
+}
+.btn-dark:hover { transform: translateY(-2px); }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--flow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
