@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+psycopg2://upflow:upflow@localhost:5432/upflow"
+    database_url: str = "postgresql+psycopg://upflow:upflow@localhost:5432/upflow"
     secret_key: str = "change-this-in-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 days

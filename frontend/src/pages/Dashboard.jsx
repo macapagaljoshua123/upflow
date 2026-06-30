@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BrowserMark } from './Header.jsx'
+import { BrowserMark } from '../components/Header.jsx'
 import Sidebar from '../components/Sidebar.jsx'
 import FileCard from '../components/FileCard.jsx'
 import ShareModal from '../components/ShareModal.jsx'
