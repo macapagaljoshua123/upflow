@@ -1,5 +1,3 @@
-import os
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,7 +22,6 @@ app.include_router(preview.router)
 
 @app.on_event("startup")
 def on_startup():
-    os.makedirs(settings.upload_dir, exist_ok=True)
     # In production, prefer Alembic migrations over create_all.
     Base.metadata.create_all(bind=engine)
 

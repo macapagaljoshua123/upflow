@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, ForeignKey, Enum, Text, func
+    Column, String, Boolean, DateTime, ForeignKey, Enum, Text, LargeBinary, Integer, func
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, backref
@@ -91,7 +91,9 @@ class FileItem(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
     name = Column(String(255), nullable=False)
     slug = Column(String(64), unique=True, nullable=False, index=True)
-    storage_path = Column(String(500), nullable=False)
+    # File bytes live directly in Postgres (BYTEA) instead of on disk.
+    content = Column(LargeBinary, nullable=False)
+    content_size = Column(Integer, nullable=False, default=0)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     folder_id = Column(UUID(as_uuid=True), ForeignKey("folders.id"), nullable=True)
     visibility = Column(Enum(Visibility), default=Visibility.private, nullable=False)

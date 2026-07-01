@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -73,4 +73,4 @@ def preview_raw(slug: str, request: Request, db: Session = Depends(get_db)):
         if not (is_owner or has_access):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This preview is private.")
 
-    return FileResponse(f.storage_path, media_type="text/html")
+    return Response(content=f.content, media_type="text/html")

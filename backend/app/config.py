@@ -6,7 +6,6 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-in-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
-    upload_dir: str = "./uploads"
     base_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:5173"
 
@@ -18,6 +17,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()

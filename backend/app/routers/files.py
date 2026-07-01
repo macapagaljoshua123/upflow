@@ -1,11 +1,9 @@
-import os
-import shutil
 import secrets
 import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -119,8 +117,6 @@ def _delete_folder_recursive(db: Session, folder: models.Folder):
     for child in list(folder.children):
         _delete_folder_recursive(db, child)
     for f in list(folder.files):
-        if os.path.exists(f.storage_path):
-            os.remove(f.storage_path)
         db.delete(f)
     db.delete(folder)
 
@@ -146,18 +142,13 @@ async def upload_file(
     except UnsafeUploadError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    user_dir = os.path.join(settings.upload_dir, str(user.id))
-    os.makedirs(user_dir, exist_ok=True)
     slug = generate_slug(db, upload.filename)
-    stored_name = f"{slug}-{secrets.token_hex(4)}_{upload.filename}"
-    storage_path = os.path.join(user_dir, stored_name)
-    with open(storage_path, "wb") as out:
-        out.write(content)
 
     file_item = models.FileItem(
         name=upload.filename,
         slug=slug,
-        storage_path=storage_path,
+        content=content,
+        content_size=len(content),
         owner_id=user.id,
         folder_id=folder_id,
         visibility=models.Visibility.private,
@@ -203,13 +194,12 @@ def copy_file(file_id: uuid.UUID, db: Session = Depends(get_db), user: models.Us
         raise HTTPException(status_code=404, detail="File not found.")
 
     new_slug = generate_slug(db, f"{original.name}-copy")
-    new_path = f"{original.storage_path}.copy-{secrets.token_hex(3)}"
-    shutil.copyfile(original.storage_path, new_path)
 
     copy_item = models.FileItem(
         name=f"{original.name} (copy)",
         slug=new_slug,
-        storage_path=new_path,
+        content=original.content,
+        content_size=original.content_size,
         owner_id=user.id,
         folder_id=original.folder_id,
         visibility=models.Visibility.private,
@@ -228,9 +218,11 @@ def download_file(file_id: uuid.UUID, db: Session = Depends(get_db), user: model
     if not f:
         raise HTTPException(status_code=404, detail="File not found.")
     assert_owner_or_editor(db, f, user)
-    if not os.path.exists(f.storage_path):
-        raise HTTPException(status_code=404, detail="File content is missing from storage.")
-    return FileResponse(f.storage_path, media_type="text/html", filename=f.name)
+    return Response(
+        content=f.content,
+        media_type="text/html",
+        headers={"Content-Disposition": f'attachment; filename="{f.name}"'},
+    )
 
 
 @router.post("/{file_id}/reupload", response_model=schemas.FileOut)
@@ -251,8 +243,8 @@ async def reupload_file(
     except UnsafeUploadError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    with open(f.storage_path, "wb") as out:
-        out.write(content)
+    f.content = content
+    f.content_size = len(content)
 
     db.add(models.UploadLog(file_id=f.id, user_id=user.id, action="reuploaded", detail=upload.filename))
     db.commit()
@@ -267,8 +259,6 @@ def delete_file(file_id: uuid.UUID, db: Session = Depends(get_db), user: models.
         raise HTTPException(status_code=404, detail="File not found.")
     if f.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Only the owner can delete this file.")
-    if os.path.exists(f.storage_path):
-        os.remove(f.storage_path)
     db.delete(f)
     db.commit()
     return {"deleted": True}
