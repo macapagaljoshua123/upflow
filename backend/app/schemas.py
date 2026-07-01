@@ -36,6 +36,14 @@ class FolderCreate(BaseModel):
     parent_id: Optional[uuid.UUID] = None
 
 
+class FolderRename(BaseModel):
+    name: str
+
+
+class FolderMove(BaseModel):
+    parent_id: Optional[uuid.UUID] = None
+
+
 class FolderOut(BaseModel):
     id: uuid.UUID
     name: str

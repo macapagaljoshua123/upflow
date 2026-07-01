@@ -5,6 +5,7 @@ import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -64,6 +65,18 @@ def list_files(
     return [file_to_out(f) for f in q.all()]
 
 
+@router.get("/folders", response_model=List[schemas.FolderOut])
+def list_folders(
+    parent_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    q = db.query(models.Folder).filter(models.Folder.owner_id == user.id)
+    q = q.filter(models.Folder.parent_id == parent_id)
+    q = q.order_by(models.Folder.name.asc())
+    return q.all()
+
+
 @router.post("/folders", response_model=schemas.FolderOut)
 def create_folder(payload: schemas.FolderCreate, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     folder = models.Folder(name=payload.name, owner_id=user.id, parent_id=payload.parent_id)
@@ -71,6 +84,53 @@ def create_folder(payload: schemas.FolderCreate, db: Session = Depends(get_db), 
     db.commit()
     db.refresh(folder)
     return folder
+
+
+def _get_owned_folder(db: Session, folder_id: uuid.UUID, user: models.User) -> models.Folder:
+    folder = db.query(models.Folder).filter(models.Folder.id == folder_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found.")
+    if folder.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can modify this folder.")
+    return folder
+
+
+@router.patch("/folders/{folder_id}", response_model=schemas.FolderOut)
+def rename_folder(folder_id: uuid.UUID, payload: schemas.FolderRename, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    folder = _get_owned_folder(db, folder_id, user)
+    folder.name = payload.name
+    db.commit()
+    db.refresh(folder)
+    return folder
+
+
+@router.patch("/folders/{folder_id}/move", response_model=schemas.FolderOut)
+def move_folder(folder_id: uuid.UUID, payload: schemas.FolderMove, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    folder = _get_owned_folder(db, folder_id, user)
+    if payload.parent_id == folder.id:
+        raise HTTPException(status_code=400, detail="A folder can't be moved into itself.")
+    folder.parent_id = payload.parent_id
+    db.commit()
+    db.refresh(folder)
+    return folder
+
+
+def _delete_folder_recursive(db: Session, folder: models.Folder):
+    for child in list(folder.children):
+        _delete_folder_recursive(db, child)
+    for f in list(folder.files):
+        if os.path.exists(f.storage_path):
+            os.remove(f.storage_path)
+        db.delete(f)
+    db.delete(folder)
+
+
+@router.delete("/folders/{folder_id}")
+def delete_folder(folder_id: uuid.UUID, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    folder = _get_owned_folder(db, folder_id, user)
+    _delete_folder_recursive(db, folder)
+    db.commit()
+    return {"deleted": True}
 
 
 @router.post("/upload", response_model=schemas.FileOut)
@@ -160,6 +220,44 @@ def copy_file(file_id: uuid.UUID, db: Session = Depends(get_db), user: models.Us
     db.commit()
     db.refresh(copy_item)
     return file_to_out(copy_item)
+
+
+@router.get("/{file_id}/download")
+def download_file(file_id: uuid.UUID, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    f = db.query(models.FileItem).filter(models.FileItem.id == file_id).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="File not found.")
+    assert_owner_or_editor(db, f, user)
+    if not os.path.exists(f.storage_path):
+        raise HTTPException(status_code=404, detail="File content is missing from storage.")
+    return FileResponse(f.storage_path, media_type="text/html", filename=f.name)
+
+
+@router.post("/{file_id}/reupload", response_model=schemas.FileOut)
+async def reupload_file(
+    file_id: uuid.UUID,
+    upload: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    f = db.query(models.FileItem).filter(models.FileItem.id == file_id).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="File not found.")
+    assert_owner_or_editor(db, f, user)
+
+    content = await upload.read()
+    try:
+        run_safety_checks(upload.filename, content)
+    except UnsafeUploadError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    with open(f.storage_path, "wb") as out:
+        out.write(content)
+
+    db.add(models.UploadLog(file_id=f.id, user_id=user.id, action="reuploaded", detail=upload.filename))
+    db.commit()
+    db.refresh(f)
+    return file_to_out(f)
 
 
 @router.delete("/{file_id}")

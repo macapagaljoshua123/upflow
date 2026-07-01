@@ -31,9 +31,10 @@ export async function listFiles({ search = '', sort = 'new', folderId = null } =
   return data
 }
 
-export async function uploadFile(formData) {
+export async function uploadFile(formData, folderId = null) {
   const { data } = await client.post('/files/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    params: folderId ? { folder_id: folderId } : {},
   })
   return data
 }
@@ -61,6 +62,51 @@ export async function moveFile(fileId, folderId) {
 export async function copyFile(fileId) {
   const { data } = await client.post(`/files/${fileId}/copy`)
   return data
+}
+
+export async function listFolders(parentId = null) {
+  const { data } = await client.get('/files/folders', { params: { parent_id: parentId } })
+  return data
+}
+
+export async function renameFolder(folderId, name) {
+  const { data } = await client.patch(`/files/folders/${folderId}`, { name })
+  return data
+}
+
+export async function moveFolder(folderId, parentId) {
+  const { data } = await client.patch(`/files/folders/${folderId}/move`, { parent_id: parentId })
+  return data
+}
+
+export async function deleteFolder(folderId) {
+  const { data } = await client.delete(`/files/folders/${folderId}`)
+  return data
+}
+
+export async function downloadFile(fileId, fileName) {
+  const res = await client.get(`/files/${fileId}/download`, { responseType: 'blob' })
+  const url = window.URL.createObjectURL(new Blob([res.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName || 'download.html'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+export async function reuploadFile(fileId, file) {
+  const formData = new FormData()
+  formData.append('upload', file)
+  const { data } = await client.post(`/files/${fileId}/reupload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export function getAuthToken() {
+  return localStorage.getItem('upflow_token')
 }
 
 export async function shareFile(fileId, payload) {
