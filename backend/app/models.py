@@ -6,7 +6,7 @@ from sqlalchemy import (
     Column, String, Boolean, DateTime, ForeignKey, Enum, Text, func
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 from app.database import Base
 
@@ -76,7 +76,12 @@ class Folder(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     owner = relationship("User", back_populates="folders")
-    children = relationship("Folder", backref="parent", remote_side=[id])
+    # remote_side must be attached to the "parent" side (via backref), not to
+    # "children" itself. Putting it on "children" flips the relationship
+    # into a many-to-one, so folder.children ends up as a single Folder (or
+    # None) instead of a list -- which is what caused
+    # `TypeError: 'NoneType' object is not iterable` when deleting a folder.
+    children = relationship("Folder", backref=backref("parent", remote_side=[id]))
     files = relationship("FileItem", back_populates="folder")
 
 

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--divinectorweb.com-->
+<head>
+    <meta charset="UTF-8">
+    <title>HOMEPAGE</title> 
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link rel="stylesheet" href="style.css">    
+</head>
+<body>   
+    
+  <h2>Welcome to HOMEPAGE</h2>
+	<div class="carousel">
+		<div class="carousel-item">
+			<div class="card">
+				<div class="img-area" style="background-image: url(tres.png);"></div>
+				<div class="container">
+					<h4>Go to WEb Application</h4>
+					<p><i>See in Dashboard</i></p>
+					<p>Created by: Krispy Dream Group</p><a href="Testing Area.html" class="nav_link sublink">Let's Go</a>
+				</div>
+			</div>
+		</div>
+		<div class="carousel-item">
+			<div class="card">
+				<div class="img-area" style="background-image: url(game.png);"></div>
+				<div class="container">
+					<h4>Free Game</h4>
+					<p><i>Stick Ladder</i></p>
+					<p>For Anti-Stress</p><a href="A Game.html" class="nav_link sublink">Let's Go</a>
+				</div>
+			</div>
+		</div>
+		<div class="carousel-item">
+			<div class="card">
+				<div class="img-area" style="background-image: url(opo.png);"></div>
+				<div class="container">
+					<h4><b>About Us</b></h4>
+					<p><i>See the our group background</i></p>
+					<p>Krispy Dream Logo</p><a href="About us.html" class="nav_link sublink">Let's Go</a>
+				</div>
+			</div>
+		</div>
+	</div>
+    
+    <script
+  src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script> 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<script>
+  $(document).ready(function(){
+    $('.carousel').carousel({
+			padding: 200
+	});
+	autoplay();
+	function autoplay() {
+		$('.carousel').carousel('next');
+		setTimeout(autoplay, 4500);
+	}
+  });
+</script>
+</body>
+<style>
+body {
+	margin: 0; 
+	padding: 0;
+	background: #08091d; 
+}
+h2 {
+	font-family: 'Bebas Neue', cursive;
+	color: #fff;
+	text-align: center;
+	margin: 40px 0 -50px;
+	padding-bottom: 20px;
+	background-image: url(img/border.png);
+	background-repeat: no-repeat;
+	background-position: center bottom;
+}
+.carousel{
+    height: 600px; 
+    perspective: 200px;
+}
+.carousel .carousel-item{
+	width: 640px;
+	height: 400px;
+}
+.card {
+	box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+	max-width: 500px;
+	margin: auto;
+	text-align: center;
+	border-radius: 10px;
+	height: 450px;
+  }
+.img-area{
+	border-radius: 10px 10px 0 0;
+	height: 200px;
+	background-size: cover;
+	background-position: center center;
+}
+h4 {
+	font-size: 35px;
+	line-height: 1.5;
+	margin: 15px 0;
+	font-family: 'Bebas Neue', cursive;
+}
+.card p{
+	font-size: 17px;
+}
+
+.container {
+  padding: 2px 16px;
+}
+.container a{
+  background-color: #000;
+  color: white;
+  width: 10px;
+  font-size: 30px;
+  border-radius: 100px;
+
+}
+
+</style>
+</html>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
+import Reveal from '../components/Reveal.jsx'
 
 const STEPS = [
   {
@@ -71,7 +72,7 @@ function Hero() {
           </div>
         </div>
 
-        <div className="hero-visual">
+        <Reveal as="div" className="hero-visual" delay={120}>
           <BrowserFrame url="upflow.app/p/portfolio-v2">
             <div className="mock-page">
               <div className="mock-block mock-block-wide" />
@@ -82,7 +83,7 @@ function Hero() {
               <div className="mock-block mock-block-tall" />
             </div>
           </BrowserFrame>
-        </div>
+        </Reveal>
       </div>
 
       <style>{`
@@ -137,8 +138,8 @@ function HowItWorks() {
         <span className="eyebrow">How it works</span>
         <h2 className="section-title">From file to live link in three steps</h2>
         <div className="steps-grid">
-          {STEPS.map((step) => (
-            <div key={step.n} className="step-card">
+          {STEPS.map((step, i) => (
+            <Reveal key={step.n} className="step-card" delay={i * 100}>
               <div className="step-visual">
                 {step.image ? (
                   <img src={step.image} alt={step.title} />
@@ -149,7 +150,7 @@ function HowItWorks() {
               <span className="step-n">{step.n}</span>
               <h3 className="step-title">{step.title}</h3>
               <p className="step-desc">{step.desc}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -178,12 +179,12 @@ function Safety() {
         <span className="eyebrow">Safety</span>
         <h2 className="section-title">Your files, scanned, sandboxed, and yours alone</h2>
         <div className="safety-grid">
-          {SAFETY_POINTS.map((point) => (
-            <div key={point.title} className="safety-card">
+          {SAFETY_POINTS.map((point, i) => (
+            <Reveal key={point.title} className="safety-card" delay={i * 90}>
               <ShieldIcon />
               <h3 className="safety-title">{point.title}</h3>
               <p className="safety-desc">{point.desc}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -227,13 +228,19 @@ function Faq() {
           {FAQS.map((item, i) => {
             const isOpen = openIndex === i
             return (
-              <button key={item.q} className={`faq-item ${isOpen ? 'open' : ''}`} onClick={() => setOpenIndex(isOpen ? -1 : i)}>
+              <Reveal
+                key={item.q}
+                as="button"
+                className={`faq-item ${isOpen ? 'open' : ''}`}
+                delay={i * 70}
+                onClick={() => setOpenIndex(isOpen ? -1 : i)}
+              >
                 <div className="faq-q">
                   <span>{item.q}</span>
                   <span className="faq-toggle">{isOpen ? '\u2212' : '+'}</span>
                 </div>
                 {isOpen && <p className="faq-a">{item.a}</p>}
-              </button>
+              </Reveal>
             )
           })}
         </div>
@@ -260,23 +267,25 @@ function FinalCta() {
   return (
     <section className="final-cta">
       <div className="container final-cta-inner">
-        <BrowserFrame url="upflow.app/p/your-page">
-          <div className="mock-page">
-            <div className="mock-block mock-block-wide" />
-            <div className="mock-row">
-              <div className="mock-block" />
-              <div className="mock-block" />
+        <Reveal>
+          <BrowserFrame url="upflow.app/p/your-page">
+            <div className="mock-page">
+              <div className="mock-block mock-block-wide" />
+              <div className="mock-row">
+                <div className="mock-block" />
+                <div className="mock-block" />
+              </div>
             </div>
-          </div>
-        </BrowserFrame>
-        <div className="final-cta-copy">
+          </BrowserFrame>
+        </Reveal>
+        <Reveal className="final-cta-copy" delay={120}>
           <h2 className="section-title">Get your HTML file live and into someone\u2019s hands</h2>
           <p className="hero-desc">No build step, no server to manage. Upload once, share forever.</p>
           <div className="hero-actions">
             <Link to="/signup" className="btn btn-primary">Try Upflow</Link>
             <a href="#gallery" className="btn btn-ghost">Browse the gallery</a>
           </div>
-        </div>
+        </Reveal>
       </div>
       <style>{`
         .final-cta { padding: 72px 0 96px; }
