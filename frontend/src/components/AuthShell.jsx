@@ -1,10 +1,21 @@
 import { Link } from 'react-router-dom'
 import { BrowserMark } from './Header.jsx'
 
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function AuthShell({ title, subtitle, children, footer }) {
   return (
     <div className="auth-shell">
       <div className="auth-card">
+        <Link to="/" className="auth-close" aria-label="Close and return to home">
+          <CloseIcon />
+        </Link>
         <Link to="/" className="auth-brand">
           <BrowserMark size={26} />
           <span>Upflow</span>
@@ -16,7 +27,13 @@ export default function AuthShell({ title, subtitle, children, footer }) {
       </div>
       <style>{`
         .auth-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-        .auth-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 36px; }
+        .auth-card { position: relative; width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 36px; }
+        .auth-close {
+          position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 8px;
+          display: flex; align-items: center; justify-content: center; color: var(--ink-dim);
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+        .auth-close:hover { background: var(--surface-2); color: var(--ink); }
         .auth-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; margin-bottom: 28px; }
         .auth-title { font-size: 1.5rem; margin-bottom: 6px; }
         .auth-subtitle { color: var(--ink-dim); font-size: 0.9rem; margin-bottom: 26px; }

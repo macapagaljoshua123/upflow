@@ -12,7 +12,7 @@ from app import models, schemas
 from app.auth import get_current_user
 from app.config import settings
 from app.security_scan import run_safety_checks, UnsafeUploadError
-from app.mailer import send_share_invite
+from app.mailer import send_share_invite, MailNotConfiguredError
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -55,8 +55,12 @@ def list_files(
     user: models.User = Depends(get_current_user),
 ):
     q = db.query(models.FileItem).filter(models.FileItem.owner_id == user.id)
-    if folder_id is not None:
-        q = q.filter(models.FileItem.folder_id == folder_id)
+    # Always scope to the requested folder, including the root view
+    # (folder_id is None there). Previously this only filtered when a
+    # folder_id was explicitly passed, so the root view showed every file
+    # the user owned -- including ones already moved into a folder, which
+    # made "Move to" look like it did nothing on the dashboard.
+    q = q.filter(models.FileItem.folder_id == folder_id)
     if search:
         q = q.filter(models.FileItem.name.ilike(f"%{search}%"))
     q = q.order_by(models.FileItem.updated_at.desc() if sort == "new" else models.FileItem.updated_at.asc())
@@ -264,7 +268,7 @@ def delete_file(file_id: uuid.UUID, db: Session = Depends(get_db), user: models.
     return {"deleted": True}
 
 
-@router.post("/{file_id}/share")
+@router.post("/{file_id}/share", response_model=schemas.ShareResponse)
 async def share_file(file_id: uuid.UUID, payload: schemas.ShareRequest, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     f = db.query(models.FileItem).filter(models.FileItem.id == file_id).first()
     if not f:
@@ -274,6 +278,9 @@ async def share_file(file_id: uuid.UUID, payload: schemas.ShareRequest, db: Sess
 
     if payload.visibility in ("public", "private"):
         f.visibility = models.Visibility(payload.visibility)
+
+    invite_email_sent = None
+    invite_email_error = None
 
     if payload.invite_email:
         invited_user = db.query(models.User).filter(models.User.email == payload.invite_email).first()
@@ -287,13 +294,22 @@ async def share_file(file_id: uuid.UUID, payload: schemas.ShareRequest, db: Sess
         preview_url = f"{settings.frontend_url}/p/{f.slug}"
         try:
             await send_share_invite(payload.invite_email, f.name, preview_url, user.name)
+            invite_email_sent = True
+        except MailNotConfiguredError as e:
+            # Sharing itself still succeeds (the access row is saved) --
+            # only the email notification failed -- but the frontend surfaces
+            # this so it's obvious the invite email never actually went out.
+            invite_email_sent = False
+            invite_email_error = str(e)
         except Exception:
-            pass  # Email delivery failures shouldn't block sharing.
+            invite_email_sent = False
+            invite_email_error = "We couldn't send the invite email. Double-check your SMTP settings and try again."
 
     db.add(models.UploadLog(file_id=f.id, user_id=user.id, action="shared", detail=payload.visibility or payload.invite_email))
     db.commit()
     db.refresh(f)
-    return file_to_out(f)
+    out = file_to_out(f)
+    return schemas.ShareResponse(**out.model_dump(), invite_email_sent=invite_email_sent, invite_email_error=invite_email_error)
 
 
 @router.get("/{file_id}/access", response_model=List[schemas.AccessEntryOut])
@@ -323,6 +339,13 @@ def get_history(db: Session = Depends(get_db), user: models.User = Depends(get_c
         .all()
     )
     return [
-        schemas.UploadLogOut(action=l.action, detail=l.detail, created_at=l.created_at, file_name=l.file.name)
+        schemas.UploadLogOut(
+            action=l.action,
+            detail=l.detail,
+            created_at=l.created_at,
+            file_name=l.file.name,
+            user_email=l.user.email,
+            user_name=l.user.name,
+        )
         for l in logs
     ]

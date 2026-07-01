@@ -9,6 +9,8 @@ import ShareModal from '../components/ShareModal.jsx'
 import PromptModal from '../components/PromptModal.jsx'
 import ConfirmModal from '../components/ConfirmModal.jsx'
 import MoveToModal from '../components/MoveToModal.jsx'
+import AboutModal from '../components/AboutModal.jsx'
+import UploadsView from '../components/UploadsView.jsx'
 import {
   logout, listFiles, listFolders, uploadFile, createFolder,
   renameFile, deleteFile, moveFile, copyFile, downloadFile, reuploadFile,
@@ -30,8 +32,10 @@ export default function Dashboard() {
   const [moveModal, setMoveModal] = useState(null) // { itemName, currentParentId, excludeFolderId, onMove }
   const [uploadMenu, setUploadMenu] = useState(null) // { x, y } | null
   const [reuploadTargetId, setReuploadTargetId] = useState(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
 
   const fileInputRef = useRef(null)
+  const folderInputRef = useRef(null)
   const reuploadInputRef = useRef(null)
   const navigate = useNavigate()
 
@@ -187,6 +191,63 @@ export default function Dashboard() {
     }
   }
 
+  function handleFolderUploadClick() {
+    folderInputRef.current?.click()
+  }
+
+  async function handleFolderSelected(e) {
+    const selected = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (!selected.length) return
+
+    const ALLOWED_EXT = ['html', 'htm', 'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'json', 'woff', 'woff2']
+    const folderCache = new Map()
+    folderCache.set('', currentFolder?.id ?? null)
+
+    async function ensureFolder(path) {
+      if (folderCache.has(path)) return folderCache.get(path)
+      const parts = path.split('/')
+      const name = parts[parts.length - 1]
+      const parentPath = parts.slice(0, -1).join('/')
+      const parentId = await ensureFolder(parentPath)
+      const folder = await createFolder(name, parentId)
+      folderCache.set(path, folder.id)
+      return folder.id
+    }
+
+    let uploaded = 0
+    let skipped = 0
+    try {
+      for (const file of selected) {
+        // webkitRelativePath looks like "PickedFolder/sub/page.html" — the
+        // first segment is the folder the person actually selected, so
+        // recreating that same path recreates the folder itself instead of
+        // just dumping its contents into the current view.
+        const relPath = file.webkitRelativePath || file.name
+        const segments = relPath.split('/')
+        const fileName = segments[segments.length - 1]
+        const dirPath = segments.slice(0, -1).join('/')
+        const ext = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : ''
+        if (!ALLOWED_EXT.includes(ext)) {
+          skipped += 1
+          continue
+        }
+        const folderId = await ensureFolder(dirPath)
+        const formData = new FormData()
+        formData.append('upload', file)
+        await uploadFile(formData, folderId)
+        uploaded += 1
+      }
+      refresh()
+      if (skipped > 0) {
+        window.alert(`Uploaded ${uploaded} file${uploaded === 1 ? '' : 's'}. Skipped ${skipped} file${skipped === 1 ? '' : 's'} with unsupported types.`)
+      }
+    } catch (err) {
+      refresh()
+      window.alert(err?.response?.data?.detail || 'Folder upload failed partway through. Some files may not have been uploaded.')
+    }
+  }
+
   async function handleReuploadSelected(e) {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -232,10 +293,10 @@ export default function Dashboard() {
   return (
     <div className="dash-shell">
       <header className="dash-topbar">
-        <a href="/" className="dash-brand">
+        <button type="button" className="dash-brand" onClick={() => setAboutOpen(true)}>
           <BrowserMark size={26} />
           <span>Upflow</span>
-        </a>
+        </button>
         <div className="dash-topbar-actions">
           <button className="btn btn-ghost btn-sm" onClick={handleNewFolder}>
             <FolderPlusIcon /> Folder
@@ -244,6 +305,16 @@ export default function Dashboard() {
             <UploadIcon /> Upload
           </button>
           <input ref={fileInputRef} type="file" multiple accept=".html,.htm" hidden onChange={handleFilesSelected} />
+          <input
+            ref={folderInputRef}
+            type="file"
+            webkitdirectory=""
+            directory=""
+            mozdirectory=""
+            multiple
+            hidden
+            onChange={handleFolderSelected}
+          />
           <input ref={reuploadInputRef} type="file" accept=".html,.htm" hidden onChange={handleReuploadSelected} />
           <button className="btn btn-ghost btn-sm" onClick={handleSignOut}>Sign out</button>
         </div>
@@ -253,61 +324,67 @@ export default function Dashboard() {
         <Sidebar active={activeNav} onChange={setActiveNav} />
 
         <main className="dash-main" onContextMenu={handleMainContextMenu}>
-          <div className="dash-toolbar">
-            <input
-              className="dash-search"
-              placeholder="Search folders and files"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <select className="dash-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="new">Newest first</option>
-              <option value="old">Oldest first</option>
-            </select>
-          </div>
-
-          {currentFolder && (
-            <button className="dash-breadcrumb" onClick={() => setCurrentFolder(null)}>
-              &larr; Back to My uploads
-            </button>
-          )}
-
-          {error && <div className="dash-error">{error}</div>}
-
-          {loading ? (
-            <div className="empty-state"><p>Loading your files…</p></div>
-          ) : filteredFolders.length === 0 && files.length === 0 ? (
-            <div className="empty-state">
-              <p>No files yet. Upload an HTML file to get a live preview link.</p>
-              <button className="btn btn-primary" onClick={handleUploadClick}>Upload your first file</button>
-              <p className="empty-hint">Tip: right-click anywhere in this empty area for quick upload options.</p>
-            </div>
+          {activeNav === 'uploads' ? (
+            <UploadsView />
           ) : (
             <>
-              {filteredFolders.length > 0 && (
-                <section className="dash-section">
-                  <h3 className="dash-section-title">Folders</h3>
-                  <div className="folder-grid">
-                    {filteredFolders.map((folder) => (
-                      <FolderCard
-                        key={folder.id}
-                        folder={folder}
-                        onOpen={setCurrentFolder}
-                        onAction={handleFolderAction}
-                      />
-                    ))}
-                  </div>
-                </section>
+              <div className="dash-toolbar">
+                <input
+                  className="dash-search"
+                  placeholder="Search folders and files"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <select className="dash-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
+                  <option value="new">Newest first</option>
+                  <option value="old">Oldest first</option>
+                </select>
+              </div>
+
+              {currentFolder && (
+                <button className="dash-breadcrumb" onClick={() => setCurrentFolder(null)}>
+                  &larr; Back to Home
+                </button>
               )}
-              {files.length > 0 && (
-                <section className="dash-section">
-                  <h3 className="dash-section-title">Files</h3>
-                  <div className="file-grid">
-                    {files.map((file) => (
-                      <FileCard key={file.id} file={file} onAction={handleFileAction} />
-                    ))}
-                  </div>
-                </section>
+
+              {error && <div className="dash-error">{error}</div>}
+
+              {loading ? (
+                <div className="empty-state"><p>Loading your files…</p></div>
+              ) : filteredFolders.length === 0 && files.length === 0 ? (
+                <div className="empty-state">
+                  <p>No files yet. Upload an HTML file to get a live preview link.</p>
+                  <button className="btn btn-primary" onClick={handleUploadClick}>Upload your first file</button>
+                  <p className="empty-hint">Tip: right-click anywhere in this empty area for quick upload options.</p>
+                </div>
+              ) : (
+                <>
+                  {filteredFolders.length > 0 && (
+                    <section className="dash-section">
+                      <h3 className="dash-section-title">Folders</h3>
+                      <div className="folder-grid">
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            folder={folder}
+                            onOpen={setCurrentFolder}
+                            onAction={handleFolderAction}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {files.length > 0 && (
+                    <section className="dash-section">
+                      <h3 className="dash-section-title">Files</h3>
+                      <div className="file-grid">
+                        {files.map((file) => (
+                          <FileCard key={file.id} file={file} onAction={handleFileAction} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
             </>
           )}
@@ -362,15 +439,23 @@ export default function Dashboard() {
           x={uploadMenu.x}
           y={uploadMenu.y}
           onFileUpload={handleUploadClick}
-          onFolderUpload={handleNewFolder}
+          onFolderUpload={handleFolderUploadClick}
           onClose={() => setUploadMenu(null)}
         />
       )}
 
+      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+
       <style>{`
         .dash-shell { min-height: 100vh; display: flex; flex-direction: column; }
         .dash-topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 68px; border-bottom: 1px solid var(--border); }
-        .dash-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; }
+        .dash-brand {
+          display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700;
+          background: none; border: none; padding: 0; color: var(--ink); cursor: pointer; font-size: 1rem;
+          border-radius: var(--radius-sm);
+        }
+        .dash-brand:hover { color: var(--flow); }
+        .dash-brand:focus-visible { outline: 2px solid var(--flow); outline-offset: 3px; }
         .dash-topbar-actions { display: flex; align-items: center; gap: 10px; }
         .btn-sm { padding: 9px 16px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; }
         .dash-body { flex: 1; display: flex; }

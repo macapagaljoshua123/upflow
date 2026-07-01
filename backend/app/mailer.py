@@ -6,15 +6,30 @@ conf = ConnectionConfig(
     MAIL_USERNAME=settings.mail_username,
     MAIL_PASSWORD=settings.mail_password,
     MAIL_FROM=settings.mail_from,
+    MAIL_FROM_NAME=settings.mail_from_name,
     MAIL_PORT=settings.mail_port,
     MAIL_SERVER=settings.mail_server,
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True,
+    MAIL_STARTTLS=settings.mail_starttls,
+    MAIL_SSL_TLS=settings.mail_ssl_tls,
+    USE_CREDENTIALS=bool(settings.mail_username and settings.mail_password),
+    VALIDATE_CERTS=True,
 )
 
 
+class MailNotConfiguredError(Exception):
+    """Raised when a send is attempted without SMTP credentials set."""
+
+
+def _assert_configured() -> None:
+    if not settings.mail_username or not settings.mail_password:
+        raise MailNotConfiguredError(
+            "SMTP isn't configured yet. Set MAIL_USERNAME, MAIL_PASSWORD, "
+            "MAIL_SERVER and MAIL_PORT in backend/.env, then restart the API."
+        )
+
+
 async def send_share_invite(to_email: str, file_name: str, preview_url: str, inviter_name: str) -> None:
+    _assert_configured()
     message = MessageSchema(
         subject=f"{inviter_name} shared \u201c{file_name}\u201d with you on Upflow",
         recipients=[to_email],
@@ -29,6 +44,7 @@ async def send_share_invite(to_email: str, file_name: str, preview_url: str, inv
 
 
 async def send_verification_code(to_email: str, code: str) -> None:
+    _assert_configured()
     message = MessageSchema(
         subject="Your Upflow verification code",
         recipients=[to_email],
@@ -44,6 +60,7 @@ async def send_verification_code(to_email: str, code: str) -> None:
 
 
 async def send_password_reset_code(to_email: str, code: str) -> None:
+    _assert_configured()
     message = MessageSchema(
         subject="Reset your Upflow password",
         recipients=[to_email],

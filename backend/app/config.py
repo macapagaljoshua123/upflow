@@ -12,8 +12,11 @@ class Settings(BaseSettings):
     mail_username: str = ""
     mail_password: str = ""
     mail_from: str = "no-reply@upflow.app"
+    mail_from_name: str = "Upflow"
     mail_server: str = "smtp.example.com"
     mail_port: int = 587
+    mail_starttls: bool = True
+    mail_ssl_tls: bool = False
 
     class Config:
         env_file = ".env"

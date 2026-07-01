@@ -113,6 +113,11 @@ class ShareRequest(BaseModel):
     role: Optional[str] = "viewer"
 
 
+class ShareResponse(FileOut):
+    invite_email_sent: Optional[bool] = None
+    invite_email_error: Optional[str] = None
+
+
 class AccessEntryOut(BaseModel):
     name: str
     email: Optional[str]
@@ -127,6 +132,8 @@ class UploadLogOut(BaseModel):
     detail: Optional[str]
     created_at: datetime
     file_name: str
+    user_email: str
+    user_name: str
 
     class Config:
         from_attributes = True
