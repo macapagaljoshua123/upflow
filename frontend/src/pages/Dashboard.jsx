@@ -6,6 +6,9 @@ import FileCard from '../components/FileCard.jsx'
 import FolderCard from '../components/FolderCard.jsx'
 import UploadMenu from '../components/UploadMenu.jsx'
 import ShareModal from '../components/ShareModal.jsx'
+import PromptModal from '../components/PromptModal.jsx'
+import ConfirmModal from '../components/ConfirmModal.jsx'
+import MoveToModal from '../components/MoveToModal.jsx'
 import {
   logout, listFiles, listFolders, uploadFile, createFolder,
   renameFile, deleteFile, moveFile, copyFile, downloadFile, reuploadFile,
@@ -22,6 +25,9 @@ export default function Dashboard() {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState('new')
   const [shareTarget, setShareTarget] = useState(null)
+  const [promptModal, setPromptModal] = useState(null) // { title, label, initialValue, confirmLabel, onConfirm }
+  const [confirmModal, setConfirmModal] = useState(null) // { title, message, confirmLabel, onConfirm }
+  const [moveModal, setMoveModal] = useState(null) // { itemName, currentParentId, excludeFolderId, onMove }
   const [uploadMenu, setUploadMenu] = useState(null) // { x, y } | null
   const [reuploadTargetId, setReuploadTargetId] = useState(null)
 
@@ -77,32 +83,42 @@ export default function Dashboard() {
       } else if (action === 'Share') {
         setShareTarget(file)
       } else if (action === 'Rename') {
-        const name = window.prompt('Rename file', file.name)
-        if (name) {
-          await renameFile(file.id, name)
-          refresh()
-        }
+        setPromptModal({
+          title: 'Rename file',
+          label: 'File name',
+          initialValue: file.name,
+          confirmLabel: 'Save',
+          onConfirm: async (name) => {
+            await renameFile(file.id, name)
+            setPromptModal(null)
+            refresh()
+          },
+        })
       } else if (action === 'Re-upload') {
         setReuploadTargetId(file.id)
         reuploadInputRef.current?.click()
       } else if (action === 'Move to') {
-        const target = window.prompt(
-          `Move "${file.name}" to which folder? Type a folder name from this view, or leave blank for root.`,
-          ''
-        )
-        if (target === null) return
-        const match = folders.find((f) => f.name.toLowerCase() === target.trim().toLowerCase())
-        if (target.trim() && !match) {
-          window.alert('No folder with that name here. Open the folder first, or create it, then try again.')
-          return
-        }
-        await moveFile(file.id, match ? match.id : null)
-        refresh()
+        setMoveModal({
+          itemName: file.name,
+          currentParentId: currentFolder?.id ?? null,
+          excludeFolderId: null,
+          onMove: async (destId) => {
+            await moveFile(file.id, destId)
+            setMoveModal(null)
+            refresh()
+          },
+        })
       } else if (action === 'Delete') {
-        if (window.confirm(`Delete "${file.name}"? This can't be undone.`)) {
-          await deleteFile(file.id)
-          refresh()
-        }
+        setConfirmModal({
+          title: 'Delete file',
+          message: `Delete "${file.name}"? This can't be undone.`,
+          confirmLabel: 'Delete',
+          onConfirm: async () => {
+            await deleteFile(file.id)
+            setConfirmModal(null)
+            refresh()
+          },
+        })
       }
     } catch (err) {
       window.alert(err?.response?.data?.detail || 'Something went wrong with that action.')
@@ -112,31 +128,39 @@ export default function Dashboard() {
   async function handleFolderAction(action, folder) {
     try {
       if (action === 'Rename') {
-        const name = window.prompt('Rename folder', folder.name)
-        if (name) {
-          await renameFolder(folder.id, name)
-          refresh()
-        }
+        setPromptModal({
+          title: 'Rename folder',
+          label: 'Folder name',
+          initialValue: folder.name,
+          confirmLabel: 'Save',
+          onConfirm: async (name) => {
+            await renameFolder(folder.id, name)
+            setPromptModal(null)
+            refresh()
+          },
+        })
       } else if (action === 'Move to') {
-        const target = window.prompt(
-          `Move "${folder.name}" to which folder? Type a folder name from this view, or leave blank for root.`,
-          ''
-        )
-        if (target === null) return
-        const match = folders.find(
-          (f) => f.id !== folder.id && f.name.toLowerCase() === target.trim().toLowerCase()
-        )
-        if (target.trim() && !match) {
-          window.alert('No folder with that name here. Open the folder first, or create it, then try again.')
-          return
-        }
-        await moveFolder(folder.id, match ? match.id : null)
-        refresh()
+        setMoveModal({
+          itemName: folder.name,
+          currentParentId: currentFolder?.id ?? null,
+          excludeFolderId: folder.id,
+          onMove: async (destId) => {
+            await moveFolder(folder.id, destId)
+            setMoveModal(null)
+            refresh()
+          },
+        })
       } else if (action === 'Delete') {
-        if (window.confirm(`Delete "${folder.name}" and everything inside it? This can't be undone.`)) {
-          await deleteFolder(folder.id)
-          refresh()
-        }
+        setConfirmModal({
+          title: 'Delete folder',
+          message: `Delete "${folder.name}" and everything inside it? This can't be undone.`,
+          confirmLabel: 'Delete',
+          onConfirm: async () => {
+            await deleteFolder(folder.id)
+            setConfirmModal(null)
+            refresh()
+          },
+        })
       }
     } catch (err) {
       window.alert(err?.response?.data?.detail || 'Something went wrong with that action.')
@@ -177,15 +201,18 @@ export default function Dashboard() {
     }
   }
 
-  async function handleNewFolder() {
-    const name = window.prompt('Folder name', 'Untitled folder')
-    if (!name) return
-    try {
-      await createFolder(name, currentFolder?.id ?? null)
-      refresh()
-    } catch (err) {
-      window.alert('Could not create folder.')
-    }
+  function handleNewFolder() {
+    setPromptModal({
+      title: 'New folder',
+      label: 'Folder name',
+      initialValue: 'Untitled folder',
+      confirmLabel: 'Create',
+      onConfirm: async (name) => {
+        await createFolder(name, currentFolder?.id ?? null)
+        setPromptModal(null)
+        refresh()
+      },
+    })
   }
 
   function handleSignOut() {
@@ -299,6 +326,37 @@ export default function Dashboard() {
         />
       )}
 
+      {promptModal && (
+        <PromptModal
+          title={promptModal.title}
+          label={promptModal.label}
+          initialValue={promptModal.initialValue}
+          confirmLabel={promptModal.confirmLabel}
+          onConfirm={promptModal.onConfirm}
+          onClose={() => setPromptModal(null)}
+        />
+      )}
+
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmLabel={confirmModal.confirmLabel}
+          onConfirm={confirmModal.onConfirm}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
+
+      {moveModal && (
+        <MoveToModal
+          itemName={moveModal.itemName}
+          currentParentId={moveModal.currentParentId}
+          excludeFolderId={moveModal.excludeFolderId}
+          onMove={moveModal.onMove}
+          onClose={() => setMoveModal(null)}
+        />
+      )}
+
       {uploadMenu && (
         <UploadMenu
           x={uploadMenu.x}
@@ -326,7 +384,7 @@ export default function Dashboard() {
         .dash-section { margin-bottom: 30px; }
         .dash-section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 0 0 12px; font-weight: 600; }
         .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
         .empty-state { text-align: center; padding: 80px 20px; color: var(--ink-dim); display: flex; flex-direction: column; align-items: center; gap: 18px; }
         .empty-hint { font-size: 0.78rem; opacity: 0.7; }
         .dash-footer { padding: 16px 24px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--ink-dim); text-align: center; }

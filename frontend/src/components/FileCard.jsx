@@ -29,7 +29,7 @@ export default function FileCard({ file, onAction }) {
   const thumbSrc = file.previewUrl ? `${file.previewUrl}/raw?token=${token}` : null
 
   return (
-    <div className="file-card" ref={ref}>
+    <div className="file-card" ref={ref} onDoubleClick={() => onAction('Open', file)} title="Double-click to preview">
       <div className="file-thumb">
         {thumbSrc && !thumbFailed ? (
           <div className="file-thumb-frame">
@@ -72,7 +72,7 @@ export default function FileCard({ file, onAction }) {
       <style>{`
         .file-card { position: relative; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--surface); transition: border-color 0.15s ease; }
         .file-card:hover { border-color: var(--flow); }
-        .file-thumb { height: 90px; border-radius: var(--radius-sm); background: var(--surface-2); display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 12px; overflow: hidden; }
+        .file-thumb { height: 170px; border-radius: var(--radius-sm); background: var(--surface-2); display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 12px; overflow: hidden; }
         .file-thumb-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
         .file-thumb-frame iframe { width: 400%; height: 400%; border: 0; transform: scale(0.25); transform-origin: top left; background: #fff; }
         .visibility-pill { position: absolute; bottom: 8px; right: 8px; font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; z-index: 2; }
@@ -94,8 +94,8 @@ export default function FileCard({ file, onAction }) {
 
 function CodeIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-      <path d="M9 8l-4 4 4 4M15 8l4 4-4 4" stroke="var(--flow)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+      <path d="M9 8l-4 4 4 4M15 8l4 4-4 4" stroke="var(--flow)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

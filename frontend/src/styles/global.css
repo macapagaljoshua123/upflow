@@ -114,8 +114,7 @@ img { max-width: 100%; display: block; }
   * { animation: none !important; transition: none !important; }
 }
 
-/* Scroll fade-in, replays every time an element crosses the viewport
-   (see components/Reveal.jsx) */
+
 .reveal {
   opacity: 0;
   transform: translateY(24px);
