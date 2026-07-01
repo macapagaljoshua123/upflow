@@ -1,11 +1,19 @@
 import { useState } from 'react'
+import { getAuthToken } from '../api/client.js'
 
 export default function ShareModal({ file, onClose, onShare }) {
   const [visibility, setVisibility] = useState(file?.visibility || 'private')
   const [email, setEmail] = useState('')
   const [copied, setCopied] = useState(false)
 
-  const link = `https://upflow.app/p/${file?.slug || 'your-file'}`
+  // file.previewUrl already comes from the backend as a real, working URL
+  // (http://localhost:5173/p/{slug} in dev). The old hardcoded
+  // "upflow.app" domain doesn't exist, which is why the copied link never
+  // opened for anyone. Public files work with this link as-is; private
+  // files need your session token tacked on so the link is actually
+  // openable while we're only testing locally.
+  const baseLink = file?.previewUrl || `${window.location.origin}/p/${file?.slug || ''}`
+  const link = visibility === 'private' ? `${baseLink}?token=${getAuthToken() || ''}` : baseLink
   const accessList = file?.accessList || [
     { name: file?.owner || 'You', role: 'Owner' },
   ]
@@ -41,7 +49,7 @@ export default function ShareModal({ file, onClose, onShare }) {
         <p className="visibility-hint">
           {visibility === 'public'
             ? 'Anyone with the link can open this preview.'
-            : 'Only people you invite by email can open this preview.'}
+            : 'Invited people can open this with their own account. The "Copy link" button below also tacks on your session token as a local-testing shortcut \u2014 don\u2019t send that version to anyone outside this test.'}
         </p>
 
         <div className="link-row">

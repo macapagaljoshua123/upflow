@@ -72,7 +72,7 @@ export default function FileCard({ file, onAction }) {
       <style>{`
         .file-card { position: relative; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--surface); transition: border-color 0.15s ease; }
         .file-card:hover { border-color: var(--flow); }
-        .file-thumb { height: 170px; border-radius: var(--radius-sm); background: var(--surface-2); display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 12px; overflow: hidden; }
+        .file-thumb { height: 260px; border-radius: var(--radius-sm); background: var(--surface-2); display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 12px; overflow: hidden; }
         .file-thumb-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
         .file-thumb-frame iframe { width: 400%; height: 400%; border: 0; transform: scale(0.25); transform-origin: top left; background: #fff; }
         .visibility-pill { position: absolute; bottom: 8px; right: 8px; font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; z-index: 2; }
