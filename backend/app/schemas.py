@@ -14,12 +14,14 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    device_token: Optional[str] = None
 
 
 class UserOut(BaseModel):
     id: uuid.UUID
     name: str
     email: EmailStr
+    email_verified: bool
 
     class Config:
         from_attributes = True
@@ -29,6 +31,22 @@ class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+    device_token: Optional[str] = None
+
+
+class PendingVerificationOut(BaseModel):
+    requires_verification: bool = True
+    email: EmailStr
+
+
+class VerifyRequest(BaseModel):
+    email: EmailStr
+    code: str
+    remember_device: bool = False
+
+
+class ResendCodeRequest(BaseModel):
+    email: EmailStr
 
 
 class FolderCreate(BaseModel):

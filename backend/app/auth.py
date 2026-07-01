@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import secrets
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -13,6 +14,20 @@ from app import models
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+VERIFICATION_CODE_TTL_MINUTES = 10
+
+
+def generate_verification_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def generate_device_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def verification_code_expiry() -> datetime:
+    return datetime.utcnow() + timedelta(minutes=VERIFICATION_CODE_TTL_MINUTES)
 
 
 def hash_password(password: str) -> str:

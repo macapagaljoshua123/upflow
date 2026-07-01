@@ -16,12 +16,13 @@ export default function Signup() {
     setError('')
     setLoading(true)
     try {
-      await signup({ name, email, password })
-      navigate('/dashboard')
-    } catch (err) {
-      setError(err.response?.data?.detail || 'We couldn\u2019t create your account. Try a different email.')
-    } finally {
+      const data = await signup({ name, email, password })
       setLoading(false)
+      // Signup always requires email verification before the dashboard.
+      navigate('/verify', { state: { email: data.email } })
+    } catch (err) {
+      setLoading(false)
+      setError(err.response?.data?.detail || 'We couldn\u2019t create your account. Try a different email.')
     }
   }
 

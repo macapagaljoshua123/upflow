@@ -26,3 +26,18 @@ async def send_share_invite(to_email: str, file_name: str, preview_url: str, inv
     )
     fm = FastMail(conf)
     await fm.send_message(message)
+
+
+async def send_verification_code(to_email: str, code: str) -> None:
+    message = MessageSchema(
+        subject="Your Upflow verification code",
+        recipients=[to_email],
+        body=(
+            f"<p>Your Upflow verification code is:</p>"
+            f"<p style=\"font-size:28px;font-weight:700;letter-spacing:4px;\">{code}</p>"
+            f"<p>This code expires in 10 minutes. If you didn\u2019t request this, you can ignore this email.</p>"
+        ),
+        subtype=MessageType.html,
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)

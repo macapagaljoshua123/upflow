@@ -33,10 +33,37 @@ class User(Base):
     name = Column(String(120), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
+    email_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     folders = relationship("Folder", back_populates="owner", cascade="all, delete-orphan")
     files = relationship("FileItem", back_populates="owner", cascade="all, delete-orphan")
+
+
+class VerificationCode(Base):
+    __tablename__ = "verification_codes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    code = Column(String(6), nullable=False)
+    consumed = Column(Boolean, default=False, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User")
+
+
+class TrustedDevice(Base):
+    __tablename__ = "trusted_devices"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    label = Column(String(120), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    last_used_at = Column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+
+    user = relationship("User")
 
 
 class Folder(Base):

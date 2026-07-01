@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import AuthShell from '../components/AuthShell.jsx'
+import LoadingOverlay from '../components/LoadingOverlay.jsx'
 import { login } from '../api/client.js'
 
 export default function Login() {
@@ -8,6 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [enteringDashboard, setEnteringDashboard] = useState(false)
   const navigate = useNavigate()
 
   async function handleSubmit(e) {
@@ -15,13 +17,24 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await login({ email, password })
-      navigate('/dashboard')
-    } catch (err) {
-      setError(err.response?.data?.detail || 'We couldn\u2019t log you in. Check your details and try again.')
-    } finally {
+      const data = await login({ email, password })
       setLoading(false)
+      if (data.requires_verification) {
+        navigate('/verify', { state: { email: data.email } })
+        return
+      }
+      // Trusted device + already verified: go straight in, with a brief
+      // loading transition instead of an instant, jarring redirect.
+      setEnteringDashboard(true)
+      setTimeout(() => navigate('/dashboard'), 900)
+    } catch (err) {
+      setLoading(false)
+      setError(err.response?.data?.detail || 'We couldn\u2019t log you in. Check your details and try again.')
     }
+  }
+
+  if (enteringDashboard) {
+    return <LoadingOverlay label="Logging you in..." />
   }
 
   return (

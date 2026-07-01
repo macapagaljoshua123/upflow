@@ -10,15 +10,38 @@ client.interceptors.request.use((config) => {
   return config
 })
 
+const DEVICE_KEY = 'upflow_device'
+
+function storeSession(data) {
+  if (data.access_token) localStorage.setItem('upflow_token', data.access_token)
+  if (data.device_token) localStorage.setItem(DEVICE_KEY, data.device_token)
+  return data
+}
+
 export async function signup(payload) {
   const { data } = await client.post('/auth/signup', payload)
-  localStorage.setItem('upflow_token', data.access_token)
+  // Signup never returns a token directly anymore — it always requires
+  // email verification first. data = { requires_verification: true, email }
   return data
 }
 
 export async function login(payload) {
-  const { data } = await client.post('/auth/login', payload)
-  localStorage.setItem('upflow_token', data.access_token)
+  const deviceToken = localStorage.getItem(DEVICE_KEY)
+  const { data } = await client.post('/auth/login', { ...payload, device_token: deviceToken })
+  if (data.access_token) storeSession(data)
+  // If no access_token came back, this device isn't trusted (or the account
+  // isn't verified yet) — data = { requires_verification: true, email }
+  return data
+}
+
+export async function verifyCode({ email, code, rememberDevice }) {
+  const { data } = await client.post('/auth/verify', { email, code, remember_device: rememberDevice })
+  storeSession(data)
+  return data
+}
+
+export async function resendCode(email) {
+  const { data } = await client.post('/auth/resend-code', { email })
   return data
 }
 
