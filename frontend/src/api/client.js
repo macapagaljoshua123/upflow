@@ -45,6 +45,17 @@ export async function resendCode(email) {
   return data
 }
 
+export async function forgotPassword(email) {
+  const { data } = await client.post('/auth/forgot-password', { email })
+  return data
+}
+
+export async function resetPassword({ email, code, newPassword }) {
+  const { data } = await client.post('/auth/reset-password', { email, code, new_password: newPassword })
+  storeSession(data)
+  return data
+}
+
 export function logout() {
   localStorage.removeItem('upflow_token')
 }

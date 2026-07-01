@@ -49,12 +49,20 @@ export default function Login() {
           <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         </div>
         <div className="form-field">
-          <label htmlFor="password">Password</label>
+          <div className="password-row">
+            <label htmlFor="password">Password</label>
+            <Link to="/forgot-password" className="forgot-link">Forgot password?</Link>
+          </div>
           <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" />
         </div>
         {error && <p style={{ color: 'var(--coral)', fontSize: '0.86rem', marginBottom: 12 }}>{error}</p>}
         <button className="btn btn-primary auth-submit" disabled={loading}>{loading ? 'Logging in...' : 'Log in'}</button>
       </form>
+
+      <style>{`
+        .password-row { display: flex; align-items: baseline; justify-content: space-between; }
+        .forgot-link { font-size: 0.82rem; color: var(--flow); }
+      `}</style>
     </AuthShell>
   )
 }

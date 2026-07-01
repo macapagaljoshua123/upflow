@@ -41,3 +41,18 @@ async def send_verification_code(to_email: str, code: str) -> None:
     )
     fm = FastMail(conf)
     await fm.send_message(message)
+
+
+async def send_password_reset_code(to_email: str, code: str) -> None:
+    message = MessageSchema(
+        subject="Reset your Upflow password",
+        recipients=[to_email],
+        body=(
+            f"<p>We received a request to reset your Upflow password. Use the code below to continue:</p>"
+            f"<p style=\"font-size:28px;font-weight:700;letter-spacing:4px;\">{code}</p>"
+            f"<p>This code expires in 10 minutes. If you didn\u2019t request a password reset, you can safely ignore this email \u2014 your password won\u2019t be changed.</p>"
+        ),
+        subtype=MessageType.html,
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)

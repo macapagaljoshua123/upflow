@@ -49,6 +49,20 @@ class ResendCodeRequest(BaseModel):
     email: EmailStr
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordOut(BaseModel):
+    message: str = "If an account with that email exists, we\u2019ve sent a reset code."
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+
 class FolderCreate(BaseModel):
     name: str
     parent_id: Optional[uuid.UUID] = None
