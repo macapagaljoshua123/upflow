@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { getAuthToken, getCurrentUser, logout } from '../api/client.js'
+import UserMenu from './UserMenu.jsx'
 
 const NAV = [
   { label: 'Gallery', href: '#gallery' },
@@ -22,6 +24,17 @@ export function BrowserMark({ size = 24 }) {
 
 export default function Header() {
   const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+
+  const token = getAuthToken()
+  const user = token ? getCurrentUser() : null
+  const isSignedIn = Boolean(token)
+
+  function handleSignOut() {
+    logout()
+    navigate('/')
+    window.location.reload()
+  }
 
   return (
     <header className="site-header">
@@ -37,10 +50,17 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="auth-row">
-          <Link to="/login" className="btn btn-ghost btn-sm">Log in</Link>
-          <Link to="/signup" className="btn btn-primary btn-sm">Sign up</Link>
-        </div>
+        {isSignedIn ? (
+          <div className="auth-row">
+            <Link to="/dashboard" className="btn btn-ghost btn-sm">Back to Dashboard</Link>
+            <UserMenu name={user?.name} email={user?.email} onSignOut={handleSignOut} />
+          </div>
+        ) : (
+          <div className="auth-row">
+            <Link to="/login" className="btn btn-ghost btn-sm">Log in</Link>
+            <Link to="/signup" className="btn btn-primary btn-sm">Sign up</Link>
+          </div>
+        )}
 
         <button
           aria-label={open ? 'Close menu' : 'Open menu'}
@@ -62,8 +82,21 @@ export default function Header() {
             </a>
           ))}
           <div className="mobile-auth">
-            <Link to="/login" className="btn btn-ghost" style={{ width: '100%' }} onClick={() => setOpen(false)}>Log in</Link>
-            <Link to="/signup" className="btn btn-primary" style={{ width: '100%' }} onClick={() => setOpen(false)}>Sign up</Link>
+            {isSignedIn ? (
+              <>
+                <Link to="/dashboard" className="btn btn-ghost" style={{ width: '100%' }} onClick={() => setOpen(false)}>
+                  Back to Dashboard
+                </Link>
+                <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { setOpen(false); handleSignOut() }}>
+                  Sign out ({user?.name || user?.email})
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="btn btn-ghost" style={{ width: '100%' }} onClick={() => setOpen(false)}>Log in</Link>
+                <Link to="/signup" className="btn btn-primary" style={{ width: '100%' }} onClick={() => setOpen(false)}>Sign up</Link>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -83,7 +116,7 @@ export default function Header() {
         .nav-desktop { display: flex; gap: 28px; flex: 1; justify-content: center; }
         .nav-link { font-size: 0.92rem; color: var(--ink-dim); }
         .nav-link:hover { color: var(--flow); }
-        .auth-row { display: flex; gap: 12px; }
+        .auth-row { display: flex; align-items: center; gap: 12px; }
         .btn-sm { padding: 10px 18px; font-size: 0.88rem; }
         .burger-btn { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; width: 36px; height: 36px; }
         .burger-bar { width: 20px; height: 2px; background: var(--ink); border-radius: 2px; transition: all 0.2s ease; }

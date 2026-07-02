@@ -11,11 +11,26 @@ client.interceptors.request.use((config) => {
 })
 
 const DEVICE_KEY = 'upflow_device'
+const USER_KEY = 'upflow_user'
 
 function storeSession(data) {
   if (data.access_token) localStorage.setItem('upflow_token', data.access_token)
   if (data.device_token) localStorage.setItem(DEVICE_KEY, data.device_token)
+  if (data.user) localStorage.setItem(USER_KEY, JSON.stringify(data.user))
   return data
+}
+
+// Returns the signed-in user's { id, name, email, email_verified } from the
+// last login/verify response, or null if nobody is signed in / nothing was
+// ever stored (e.g. an older session from before this existed).
+export function getCurrentUser() {
+  const raw = localStorage.getItem(USER_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
 }
 
 export async function signup(payload) {
@@ -58,6 +73,7 @@ export async function resetPassword({ email, code, newPassword }) {
 
 export function logout() {
   localStorage.removeItem('upflow_token')
+  localStorage.removeItem(USER_KEY)
 }
 
 export async function listFiles({ search = '', sort = 'new', folderId = null } = {}) {

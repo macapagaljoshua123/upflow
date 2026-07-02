@@ -11,10 +11,11 @@ import ConfirmModal from '../components/ConfirmModal.jsx'
 import MoveToModal from '../components/MoveToModal.jsx'
 import AboutModal from '../components/AboutModal.jsx'
 import UploadsView from '../components/UploadsView.jsx'
+import UserMenu from '../components/UserMenu.jsx'
 import {
   logout, listFiles, listFolders, uploadFile, createFolder,
   renameFile, deleteFile, moveFile, copyFile, downloadFile, reuploadFile,
-  renameFolder, moveFolder, deleteFolder,
+  renameFolder, moveFolder, deleteFolder, getCurrentUser,
 } from '../api/client.js'
 
 export default function Dashboard() {
@@ -24,8 +25,13 @@ export default function Dashboard() {
   const [currentFolder, setCurrentFolder] = useState(null) // { id, name } | null = root
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('') // what the person is typing, updates instantly
+  const [search, setSearch] = useState('') // debounced value that actually triggers the fetch
   const [sort, setSort] = useState('new')
+  const [currentUser] = useState(() => getCurrentUser())
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedFileIds, setSelectedFileIds] = useState(() => new Set())
+  const [selectedFolderIds, setSelectedFolderIds] = useState(() => new Set())
   const [shareTarget, setShareTarget] = useState(null)
   const [promptModal, setPromptModal] = useState(null) // { title, label, initialValue, confirmLabel, onConfirm }
   const [confirmModal, setConfirmModal] = useState(null) // { title, message, confirmLabel, onConfirm }
@@ -74,6 +80,22 @@ export default function Dashboard() {
     refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, sort, currentFolder])
+
+  // Debounce the search box so typing feels instant while the actual fetch
+  // (and the grid re-render it triggers) settles in smoothly instead of
+  // jumping on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 220)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  // Leaving selection mode, or navigating between folders, clears the
+  // current picks so stale selections don't carry across views.
+  useEffect(() => {
+    setSelectedFileIds(new Set())
+    setSelectedFolderIds(new Set())
+    setSelectionMode(false)
+  }, [currentFolder])
 
   async function handleFileAction(action, file) {
     try {
@@ -290,6 +312,123 @@ export default function Dashboard() {
 
   const filteredFolders = folders.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))
 
+  // ---- Selection (Google Drive-style multi-select) ----
+
+  function toggleSelectionMode() {
+    setSelectionMode((v) => {
+      const next = !v
+      if (!next) {
+        setSelectedFileIds(new Set())
+        setSelectedFolderIds(new Set())
+      }
+      return next
+    })
+  }
+
+  function toggleFileSelected(fileId) {
+    if (!selectionMode) setSelectionMode(true)
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(fileId)) next.delete(fileId)
+      else next.add(fileId)
+      return next
+    })
+  }
+
+  function toggleFolderSelected(folderId) {
+    if (!selectionMode) setSelectionMode(true)
+    setSelectedFolderIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(folderId)) next.delete(folderId)
+      else next.add(folderId)
+      return next
+    })
+  }
+
+  const allSelected =
+    filteredFolders.length + files.length > 0 &&
+    filteredFolders.every((f) => selectedFolderIds.has(f.id)) &&
+    files.every((f) => selectedFileIds.has(f.id))
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedFileIds(new Set())
+      setSelectedFolderIds(new Set())
+    } else {
+      setSelectedFileIds(new Set(files.map((f) => f.id)))
+      setSelectedFolderIds(new Set(filteredFolders.map((f) => f.id)))
+      setSelectionMode(true)
+    }
+  }
+
+  const selectedCount = selectedFileIds.size + selectedFolderIds.size
+  const selectedFileObjs = files.filter((f) => selectedFileIds.has(f.id))
+  const selectedFolderObjs = filteredFolders.filter((f) => selectedFolderIds.has(f.id))
+
+  function clearSelection() {
+    setSelectedFileIds(new Set())
+    setSelectedFolderIds(new Set())
+    setSelectionMode(false)
+  }
+
+  function handleBulkDelete() {
+    const label = selectedCount === 1
+      ? `"${(selectedFileObjs[0] || selectedFolderObjs[0])?.name}"`
+      : `these ${selectedCount} items`
+    setConfirmModal({
+      title: 'Delete selected',
+      message: `Delete ${label}? This can't be undone.`,
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        await Promise.all([
+          ...selectedFileObjs.map((f) => deleteFile(f.id)),
+          ...selectedFolderObjs.map((f) => deleteFolder(f.id)),
+        ])
+        setConfirmModal(null)
+        clearSelection()
+        refresh()
+      },
+    })
+  }
+
+  function handleBulkMove() {
+    const label = selectedCount === 1
+      ? (selectedFileObjs[0] || selectedFolderObjs[0])?.name
+      : `${selectedCount} items`
+    setMoveModal({
+      itemName: label,
+      currentParentId: currentFolder?.id ?? null,
+      excludeFolderId: selectedFolderObjs[0]?.id ?? null,
+      onMove: async (destId) => {
+        await Promise.all([
+          ...selectedFileObjs.map((f) => moveFile(f.id, destId)),
+          ...selectedFolderObjs.map((f) => moveFolder(f.id, destId)),
+        ])
+        setMoveModal(null)
+        clearSelection()
+        refresh()
+      },
+    })
+  }
+
+  function handleBulkShare() {
+    if (selectedFileObjs.length !== 1 || selectedFolderObjs.length !== 0) return
+    setShareTarget(selectedFileObjs[0])
+  }
+
+  async function handleBulkDownload() {
+    for (const f of selectedFileObjs) {
+      // eslint-disable-next-line no-await-in-loop
+      await downloadFile(f.id, f.name)
+    }
+  }
+
+  async function handleBulkCopy() {
+    await Promise.all(selectedFileObjs.map((f) => copyFile(f.id)))
+    clearSelection()
+    refresh()
+  }
+
   return (
     <div className="dash-shell">
       <header className="dash-topbar">
@@ -316,24 +455,78 @@ export default function Dashboard() {
             onChange={handleFolderSelected}
           />
           <input ref={reuploadInputRef} type="file" accept=".html,.htm" hidden onChange={handleReuploadSelected} />
-          <button className="btn btn-ghost btn-sm" onClick={handleSignOut}>Sign out</button>
+          <UserMenu name={currentUser?.name} email={currentUser?.email} onSignOut={handleSignOut} />
         </div>
       </header>
 
       <div className="dash-body">
-        <Sidebar active={activeNav} onChange={setActiveNav} />
+        <Sidebar active={activeNav} onChange={setActiveNav} onSignOut={handleSignOut} />
 
         <main className="dash-main" onContextMenu={handleMainContextMenu}>
           {activeNav === 'uploads' ? (
             <UploadsView />
           ) : (
             <>
+              <div className={`selection-bar ${selectionMode ? 'open' : ''}`}>
+                {selectionMode ? (
+                  <>
+                    <button className="selection-close" onClick={clearSelection} aria-label="Clear selection">
+                      <CloseIcon />
+                    </button>
+                    <label className="selection-all">
+                      <span className={`selection-dot ${allSelected ? 'checked' : ''}`} onClick={toggleSelectAll} role="checkbox" aria-checked={allSelected} tabIndex={0}>
+                        {allSelected && <CheckIcon />}
+                      </span>
+                      <span onClick={toggleSelectAll} style={{ cursor: 'pointer' }}>
+                        {selectedCount} selected · Select all
+                      </span>
+                    </label>
+                    <div className="selection-actions">
+                      <button
+                        className="selection-action-btn"
+                        onClick={handleBulkShare}
+                        disabled={selectedFileObjs.length !== 1 || selectedFolderObjs.length !== 0}
+                        title="Share"
+                      >
+                        <ShareIcon /> Share
+                      </button>
+                      <button className="selection-action-btn" onClick={handleBulkMove} title="Move to">
+                        <MoveIcon /> Move to
+                      </button>
+                      <button
+                        className="selection-action-btn"
+                        onClick={handleBulkCopy}
+                        disabled={selectedFileObjs.length === 0 || selectedFolderObjs.length > 0}
+                        title="Make a copy"
+                      >
+                        <CopyIcon /> Copy
+                      </button>
+                      <button
+                        className="selection-action-btn"
+                        onClick={handleBulkDownload}
+                        disabled={selectedFileObjs.length === 0 || selectedFolderObjs.length > 0}
+                        title="Download"
+                      >
+                        <DownloadIcon /> Download
+                      </button>
+                      <button className="selection-action-btn danger" onClick={handleBulkDelete} title="Delete">
+                        <DeleteIcon /> Delete
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button className="selection-select-btn" onClick={toggleSelectionMode}>
+                    <SelectIcon /> Select
+                  </button>
+                )}
+              </div>
+
               <div className="dash-toolbar">
                 <input
                   className="dash-search"
                   placeholder="Search folders and files"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
                 <select className="dash-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
                   <option value="new">Newest first</option>
@@ -369,6 +562,9 @@ export default function Dashboard() {
                             folder={folder}
                             onOpen={setCurrentFolder}
                             onAction={handleFolderAction}
+                            selectionMode={selectionMode}
+                            selected={selectedFolderIds.has(folder.id)}
+                            onToggleSelect={() => toggleFolderSelected(folder.id)}
                           />
                         ))}
                       </div>
@@ -379,7 +575,14 @@ export default function Dashboard() {
                       <h3 className="dash-section-title">Files</h3>
                       <div className="file-grid">
                         {files.map((file) => (
-                          <FileCard key={file.id} file={file} onAction={handleFileAction} />
+                          <FileCard
+                            key={file.id}
+                            file={file}
+                            onAction={handleFileAction}
+                            selectionMode={selectionMode}
+                            selected={selectedFileIds.has(file.id)}
+                            onToggleSelect={() => toggleFileSelected(file.id)}
+                          />
                         ))}
                       </div>
                     </section>
@@ -460,21 +663,59 @@ export default function Dashboard() {
         .btn-sm { padding: 9px 16px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; }
         .dash-body { flex: 1; display: flex; }
         .dash-main { flex: 1; padding: 24px 28px; min-height: calc(100vh - 68px - 52px); }
-        .dash-toolbar { display: flex; gap: 12px; margin-bottom: 22px; }
-        .dash-search { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; color: var(--ink); font-size: 0.9rem; }
+
+        .selection-bar {
+          display: flex; align-items: center; gap: 14px; height: 0; opacity: 0; overflow: hidden;
+          transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease, margin-bottom 0.22s ease;
+          margin-bottom: 0;
+        }
+        .selection-bar.open { height: 44px; opacity: 1; margin-bottom: 14px; }
+        .selection-select-btn {
+          display: inline-flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--border);
+          border-radius: var(--radius-sm); padding: 9px 14px; color: var(--ink-dim); font-size: 0.85rem;
+          transition: border-color 0.15s ease, color 0.15s ease;
+        }
+        .selection-select-btn:hover { border-color: var(--flow); color: var(--flow); }
+        .selection-close { flex-shrink: 0; background: none; color: var(--ink-dim); padding: 6px; border-radius: 50%; display: flex; }
+        .selection-close:hover { background: var(--surface-2); color: var(--ink); }
+        .selection-all { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--ink-dim); white-space: nowrap; }
+        .selection-dot {
+          width: 20px; height: 20px; border-radius: 50%; border: 1.6px solid var(--ink-dim); flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
+        }
+        .selection-dot:hover { border-color: var(--flow); }
+        .selection-dot.checked { background: var(--flow); border-color: var(--flow); }
+        .selection-actions { display: flex; gap: 8px; margin-left: auto; overflow-x: auto; }
+        .selection-action-btn {
+          display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border);
+          border-radius: var(--radius-sm); padding: 8px 13px; color: var(--ink); font-size: 0.83rem; white-space: nowrap;
+          transition: border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+        }
+        .selection-action-btn:hover:not(:disabled) { border-color: var(--flow); color: var(--flow); }
+        .selection-action-btn:disabled { opacity: 0.4; cursor: default; }
+        .selection-action-btn.danger:hover:not(:disabled) { border-color: var(--coral); color: var(--coral); }
+
+        .dash-toolbar { display: flex; gap: 12px; margin-bottom: 22px; transition: margin-top 0.22s ease; }
+        .dash-search { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; color: var(--ink); font-size: 0.9rem; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
         .dash-search:focus-visible { outline: 2px solid var(--flow); }
+        .dash-search:focus { border-color: var(--flow); box-shadow: 0 0 0 3px rgba(94,230,197,0.12); }
         .dash-sort { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 14px; color: var(--ink); font-size: 0.88rem; }
         .dash-breadcrumb { background: none; color: var(--flow); font-size: 0.85rem; margin-bottom: 16px; padding: 0; }
         .dash-error { background: rgba(255,107,107,0.12); color: var(--coral); border: 1px solid rgba(255,107,107,0.3); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 18px; font-size: 0.87rem; }
-        .dash-section { margin-bottom: 30px; }
+        .dash-section { margin-bottom: 30px; animation: sectionFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
         .dash-section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 0 0 12px; font-weight: 600; }
         .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
         .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .empty-state { text-align: center; padding: 80px 20px; color: var(--ink-dim); display: flex; flex-direction: column; align-items: center; gap: 18px; }
+        .empty-state { text-align: center; padding: 80px 20px; color: var(--ink-dim); display: flex; flex-direction: column; align-items: center; gap: 18px; animation: sectionFadeIn 0.28s ease; }
         .empty-hint { font-size: 0.78rem; opacity: 0.7; }
         .dash-footer { padding: 16px 24px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--ink-dim); text-align: center; }
+        @keyframes sectionFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @media (max-width: 640px) {
           .dash-topbar-actions span { display: none; }
+          .selection-actions { margin-left: 0; }
         }
       `}</style>
     </div>
@@ -508,6 +749,75 @@ function FolderPlusIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
       <path d="M4 6.5a1 1 0 011-1h4.6l1.6 2h7.2a1 1 0 011 1v9.5a1 1 0 01-1 1H5a1 1 0 01-1-1V6.5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
       <path d="M12 11v4M10 13h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function SelectIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M8.5 12.5l2.3 2.3L16 9.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+      <path d="M5 12.5l4.5 4.5L19 7" stroke="#06231C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ShareIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <circle cx="6" cy="12" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="17" cy="6" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="17" cy="18" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8.1 10.9L14.9 7.1M8.1 13.1l6.8 3.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function MoveIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M4 6.5a1 1 0 011-1h4.6l1.6 2h7.2a1 1 0 011 1v9.5a1 1 0 01-1 1H5a1 1 0 01-1-1V6.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9.5 12.5h5M12.2 9.8l3 2.7-3 2.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function CopyIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M8 8V5a1 1 0 011-1h9a1 1 0 011 1v9a1 1 0 01-1 1h-3M6 8h9a1 1 0 011 1v9a1 1 0 01-1 1H6a1 1 0 01-1-1V9a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M12 4v11M12 15l-4-4M12 15l4-4M5 18h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function DeleteIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M5 7h14M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-8 0v12a1 1 0 001 1h8a1 1 0 001-1V7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

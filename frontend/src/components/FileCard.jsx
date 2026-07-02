@@ -12,7 +12,7 @@ const ACTIONS = [
   { label: 'Delete', icon: 'delete' },
 ]
 
-export default function FileCard({ file, onAction }) {
+export default function FileCard({ file, onAction, selectionMode = false, selected = false, onToggleSelect }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [thumbFailed, setThumbFailed] = useState(false)
   const ref = useRef(null)
@@ -28,8 +28,32 @@ export default function FileCard({ file, onAction }) {
   const token = getAuthToken()
   const thumbSrc = file.previewUrl ? `${file.previewUrl}/raw?token=${token}` : null
 
+  function handleClick() {
+    if (selectionMode) onToggleSelect?.()
+  }
+
+  function handleDoubleClick() {
+    if (selectionMode) return
+    onAction('Open', file)
+  }
+
   return (
-    <div className="file-card" ref={ref} onDoubleClick={() => onAction('Open', file)} title="Double-click to preview">
+    <div
+      className={`file-card ${selectionMode ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
+      ref={ref}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      title={selectionMode ? file.name : 'Double-click to preview'}
+    >
+      <button
+        type="button"
+        className={`select-dot ${selected ? 'checked' : ''}`}
+        onClick={(e) => { e.stopPropagation(); onToggleSelect?.() }}
+        aria-label={selected ? 'Deselect file' : 'Select file'}
+        aria-pressed={selected}
+      >
+        {selected && <CheckDotIcon />}
+      </button>
       <div className="file-thumb">
         {thumbSrc && !thumbFailed ? (
           <div className="file-thumb-frame">
@@ -50,9 +74,11 @@ export default function FileCard({ file, onAction }) {
         <span className="file-name" title={file.name}>{file.name}</span>
         <span className="file-date">{file.updatedAt}</span>
       </div>
-      <button className="file-menu-btn" onClick={() => setMenuOpen((v) => !v)} aria-label="File actions">
-        <DotsIcon />
-      </button>
+      {!selectionMode && (
+        <button className="file-menu-btn" onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }} aria-label="File actions">
+          <DotsIcon />
+        </button>
+      )}
 
       {menuOpen && (
         <div className="file-menu">
@@ -70,8 +96,27 @@ export default function FileCard({ file, onAction }) {
       )}
 
       <style>{`
-        .file-card { position: relative; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--surface); transition: border-color 0.15s ease; }
+        .file-card {
+          position: relative; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--surface);
+          transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+          animation: cardFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes cardFadeIn {
+          from { opacity: 0; transform: translateY(6px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
         .file-card:hover { border-color: var(--flow); }
+        .file-card.selectable { cursor: pointer; }
+        .file-card.selected { border-color: var(--flow); background: rgba(94,230,197,0.06); box-shadow: 0 0 0 1px var(--flow); }
+        .select-dot {
+          position: absolute; top: 14px; left: 12px; z-index: 4; width: 22px; height: 22px; border-radius: 50%;
+          background: rgba(11,14,20,0.55); border: 1.6px solid rgba(255,255,255,0.55); backdrop-filter: blur(2px);
+          display: flex; align-items: center; justify-content: center; opacity: 0;
+          transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+        .file-card:hover .select-dot, .file-card.selectable .select-dot, .select-dot.checked { opacity: 1; }
+        .select-dot:hover { border-color: var(--flow); transform: scale(1.08); }
+        .select-dot.checked { background: var(--flow); border-color: var(--flow); }
         .file-thumb { height: 260px; border-radius: var(--radius-sm); background: var(--surface-2); display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 12px; overflow: hidden; }
         .file-thumb-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
         .file-thumb-frame iframe { width: 400%; height: 400%; border: 0; transform: scale(0.25); transform-origin: top left; background: #fff; }
@@ -89,6 +134,14 @@ export default function FileCard({ file, onAction }) {
         .file-menu-item.danger { color: var(--coral); }
       `}</style>
     </div>
+  )
+}
+
+function CheckDotIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+      <path d="M5 12.5l4.5 4.5L19 7" stroke="#06231C" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 
