@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import Reveal from '../components/Reveal.jsx'
+import { getAuthToken } from '../api/client.js'
 
 const STEPS = [
   {
@@ -56,6 +57,7 @@ export default function Landing() {
 }
 
 function Hero() {
+  const isSignedIn = Boolean(getAuthToken())
   return (
     <section className="hero">
       <div className="container hero-grid">
@@ -67,7 +69,11 @@ function Hero() {
             send to anyone — no hosting, no deployment, no waiting.
           </p>
           <div className="hero-actions">
-            <Link to="/signup" className="btn btn-primary">Try Upflow Free</Link>
+            {isSignedIn ? (
+              <Link to="/dashboard" className="btn btn-primary">Go to Dashboard</Link>
+            ) : (
+              <Link to="/signup" className="btn btn-primary">Try Upflow Free</Link>
+            )}
             <a href="#how-it-works" className="btn btn-ghost">See how it works</a>
           </div>
         </div>
@@ -264,6 +270,7 @@ function Faq() {
 }
 
 function FinalCta() {
+  const isSignedIn = Boolean(getAuthToken())
   return (
     <section className="final-cta">
       <div className="container final-cta-inner">
@@ -282,7 +289,11 @@ function FinalCta() {
           <h2 className="section-title">Get your HTML file live and into someone\u2019s hands</h2>
           <p className="hero-desc">No build step, no server to manage. Upload once, share forever.</p>
           <div className="hero-actions">
-            <Link to="/signup" className="btn btn-primary">Try Upflow</Link>
+            {isSignedIn ? (
+              <Link to="/dashboard" className="btn btn-primary">Go to Dashboard</Link>
+            ) : (
+              <Link to="/signup" className="btn btn-primary">Try Upflow</Link>
+            )}
             <a href="#gallery" className="btn btn-ghost">Browse the gallery</a>
           </div>
         </Reveal>

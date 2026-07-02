@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getAuthToken, getCurrentUser, logout } from '../api/client.js'
 import UserMenu from './UserMenu.jsx'
+import ThemeToggle from './ThemeToggle.jsx'
 
 const NAV = [
   { label: 'Gallery', href: '#gallery' },
@@ -53,10 +54,12 @@ export default function Header() {
         {isSignedIn ? (
           <div className="auth-row">
             <Link to="/dashboard" className="btn btn-ghost btn-sm">Back to Dashboard</Link>
+            <ThemeToggle />
             <UserMenu name={user?.name} email={user?.email} onSignOut={handleSignOut} />
           </div>
         ) : (
           <div className="auth-row">
+            <ThemeToggle />
             <Link to="/login" className="btn btn-ghost btn-sm">Log in</Link>
             <Link to="/signup" className="btn btn-primary btn-sm">Sign up</Link>
           </div>
@@ -82,6 +85,10 @@ export default function Header() {
             </a>
           ))}
           <div className="mobile-auth">
+            <div className="mobile-theme-row">
+              <span>Appearance</span>
+              <ThemeToggle />
+            </div>
             {isSignedIn ? (
               <>
                 <Link to="/dashboard" className="btn btn-ghost" style={{ width: '100%' }} onClick={() => setOpen(false)}>
@@ -106,7 +113,7 @@ export default function Header() {
           position: sticky;
           top: 0;
           z-index: 50;
-          background: rgba(11,14,20,0.85);
+          background: var(--header-bg);
           backdrop-filter: blur(10px);
           border-bottom: 1px solid var(--border);
         }
@@ -126,6 +133,7 @@ export default function Header() {
         .mobile-panel { display: flex; flex-direction: column; gap: 18px; padding: 20px 24px 28px; border-top: 1px solid var(--border); }
         .mobile-link { font-size: 1rem; color: var(--ink); }
         .mobile-auth { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+        .mobile-theme-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--ink-dim); padding: 4px 0 10px; }
 
         @media (max-width: 880px) {
           .nav-desktop, .auth-row { display: none; }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { BrowserMark } from '../components/Header.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 import Sidebar from '../components/Sidebar.jsx'
 import FileCard from '../components/FileCard.jsx'
 import FolderCard from '../components/FolderCard.jsx'
@@ -437,6 +438,9 @@ export default function Dashboard() {
           <span>Upflow</span>
         </button>
         <div className="dash-topbar-actions">
+          <Link to="/" className="btn btn-ghost btn-sm">
+            <HomeIcon /> <span>Landing page</span>
+          </Link>
           <button className="btn btn-ghost btn-sm" onClick={handleNewFolder}>
             <FolderPlusIcon /> Folder
           </button>
@@ -455,6 +459,7 @@ export default function Dashboard() {
             onChange={handleFolderSelected}
           />
           <input ref={reuploadInputRef} type="file" accept=".html,.htm" hidden onChange={handleReuploadSelected} />
+          <ThemeToggle />
           <UserMenu name={currentUser?.name} email={currentUser?.email} onSignOut={handleSignOut} />
         </div>
       </header>
@@ -467,60 +472,6 @@ export default function Dashboard() {
             <UploadsView />
           ) : (
             <>
-              <div className={`selection-bar ${selectionMode ? 'open' : ''}`}>
-                {selectionMode ? (
-                  <>
-                    <button className="selection-close" onClick={clearSelection} aria-label="Clear selection">
-                      <CloseIcon />
-                    </button>
-                    <label className="selection-all">
-                      <span className={`selection-dot ${allSelected ? 'checked' : ''}`} onClick={toggleSelectAll} role="checkbox" aria-checked={allSelected} tabIndex={0}>
-                        {allSelected && <CheckIcon />}
-                      </span>
-                      <span onClick={toggleSelectAll} style={{ cursor: 'pointer' }}>
-                        {selectedCount} selected · Select all
-                      </span>
-                    </label>
-                    <div className="selection-actions">
-                      <button
-                        className="selection-action-btn"
-                        onClick={handleBulkShare}
-                        disabled={selectedFileObjs.length !== 1 || selectedFolderObjs.length !== 0}
-                        title="Share"
-                      >
-                        <ShareIcon /> Share
-                      </button>
-                      <button className="selection-action-btn" onClick={handleBulkMove} title="Move to">
-                        <MoveIcon /> Move to
-                      </button>
-                      <button
-                        className="selection-action-btn"
-                        onClick={handleBulkCopy}
-                        disabled={selectedFileObjs.length === 0 || selectedFolderObjs.length > 0}
-                        title="Make a copy"
-                      >
-                        <CopyIcon /> Copy
-                      </button>
-                      <button
-                        className="selection-action-btn"
-                        onClick={handleBulkDownload}
-                        disabled={selectedFileObjs.length === 0 || selectedFolderObjs.length > 0}
-                        title="Download"
-                      >
-                        <DownloadIcon /> Download
-                      </button>
-                      <button className="selection-action-btn danger" onClick={handleBulkDelete} title="Delete">
-                        <DeleteIcon /> Delete
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <button className="selection-select-btn" onClick={toggleSelectionMode}>
-                    <SelectIcon /> Select
-                  </button>
-                )}
-              </div>
-
               <div className="dash-toolbar">
                 <input
                   className="dash-search"
@@ -532,6 +483,60 @@ export default function Dashboard() {
                   <option value="new">Newest first</option>
                   <option value="old">Oldest first</option>
                 </select>
+              </div>
+
+              <div className={`selection-bar ${selectionMode ? 'open' : ''}`}>
+                {selectionMode ? (
+                  <>
+                    <button className="selection-close" onClick={clearSelection} aria-label="Clear selection">
+                      <CloseIcon />
+                    </button>
+                    <span className="selection-count">
+                      {selectedCount > 0 ? `${selectedCount} selected` : 'Select items below'}
+                    </span>
+                    {selectedCount > 0 && (
+                      <div className="selection-actions">
+                        <button className="selection-action-btn" onClick={toggleSelectAll} title="Select all">
+                          <CheckIcon /> {allSelected ? 'Deselect all' : 'Select All'}
+                        </button>
+                        <button
+                          className="selection-action-btn"
+                          onClick={handleBulkDownload}
+                          disabled={selectedFileObjs.length === 0 || selectedFolderObjs.length > 0}
+                          title="Download"
+                        >
+                          <DownloadIcon /> Download
+                        </button>
+                        <button className="selection-action-btn" onClick={handleBulkMove} title="Move to">
+                          <MoveIcon /> Move to
+                        </button>
+                        <button
+                          className="selection-action-btn"
+                          onClick={handleBulkShare}
+                          disabled={selectedFileObjs.length !== 1 || selectedFolderObjs.length !== 0}
+                          title="Share"
+                        >
+                          <ShareIcon /> Share
+                        </button>
+                        <button
+                          className="selection-action-btn"
+                          onClick={handleBulkCopy}
+                          disabled={selectedFileObjs.length === 0 || selectedFolderObjs.length > 0}
+                          title="Make a copy"
+                        >
+                          <CopyIcon /> Make a Copy
+                        </button>
+                        <button className="selection-action-btn danger" onClick={handleBulkDelete} title="Delete">
+                          <DeleteIcon /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button className="selection-select-btn" onClick={toggleSelectionMode}>
+                    <SelectIcon /> Select
+                  </button>
+                )}
               </div>
 
               {currentFolder && (
@@ -664,12 +669,7 @@ export default function Dashboard() {
         .dash-body { flex: 1; display: flex; }
         .dash-main { flex: 1; padding: 24px 28px; min-height: calc(100vh - 68px - 52px); }
 
-        .selection-bar {
-          display: flex; align-items: center; gap: 14px; height: 0; opacity: 0; overflow: hidden;
-          transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease, margin-bottom 0.22s ease;
-          margin-bottom: 0;
-        }
-        .selection-bar.open { height: 44px; opacity: 1; margin-bottom: 14px; }
+        .selection-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; min-height: 40px; }
         .selection-select-btn {
           display: inline-flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--border);
           border-radius: var(--radius-sm); padding: 9px 14px; color: var(--ink-dim); font-size: 0.85rem;
@@ -678,14 +678,8 @@ export default function Dashboard() {
         .selection-select-btn:hover { border-color: var(--flow); color: var(--flow); }
         .selection-close { flex-shrink: 0; background: none; color: var(--ink-dim); padding: 6px; border-radius: 50%; display: flex; }
         .selection-close:hover { background: var(--surface-2); color: var(--ink); }
-        .selection-all { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--ink-dim); white-space: nowrap; }
-        .selection-dot {
-          width: 20px; height: 20px; border-radius: 50%; border: 1.6px solid var(--ink-dim); flex-shrink: 0;
-          display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
-        }
-        .selection-dot:hover { border-color: var(--flow); }
-        .selection-dot.checked { background: var(--flow); border-color: var(--flow); }
-        .selection-actions { display: flex; gap: 8px; margin-left: auto; overflow-x: auto; }
+        .selection-count { font-size: 0.85rem; color: var(--ink-dim); white-space: nowrap; }
+        .selection-actions { display: flex; flex-wrap: wrap; gap: 8px; }
         .selection-action-btn {
           display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border);
           border-radius: var(--radius-sm); padding: 8px 13px; color: var(--ink); font-size: 0.83rem; white-space: nowrap;
@@ -740,6 +734,15 @@ function UploadIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
       <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M5 16v3a2 2 0 002 2h10a2 2 0 002-2v-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function HomeIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M4 11.5L12 4l8 7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 10v9a1 1 0 001 1h3v-5a1 1 0 011-1h2a1 1 0 011 1v5h3a1 1 0 001-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
     </svg>
   )
 }

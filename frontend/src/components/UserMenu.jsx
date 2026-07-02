@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 
 /**
- * Shows the signed-in user's name as a pill. Click (or hover on desktop)
- * reveals a small dropdown with Settings and Sign out. Used in the Dashboard
- * topbar and in the marketing Header when a session is active.
+ * Shows the signed-in user's name as a pill. Click reveals a small dropdown
+ * with Settings and Sign out — it only opens on click, not on hover, so
+ * hovering over it or moving the cursor across it doesn't pop it open.
+ * Used in the Dashboard topbar and in the marketing Header when a session
+ * is active.
  *
  * extraItems: optional [{ label, onClick, icon? }] rendered above the
  * built-in Settings/Sign out rows (e.g. "Back to Dashboard" on the landing page).
@@ -30,7 +32,7 @@ export default function UserMenu({ name, email, onSignOut, extraItems = [] }) {
   const initial = (name || email || '?').trim().charAt(0).toUpperCase()
 
   return (
-    <div className="user-menu" ref={ref} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+    <div className="user-menu" ref={ref}>
       <button
         type="button"
         className="user-menu-trigger"

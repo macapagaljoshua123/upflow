@@ -21,6 +21,23 @@
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 22px;
+
+  --header-bg: rgba(11, 14, 20, 0.85);
+}
+
+/* Light mode — white & green, same layout as the dark theme, just a
+   different palette applied through the same CSS variables. */
+[data-theme='light'] {
+  --canvas: #FFFFFF;
+  --surface: #F2FAF6;
+  --surface-2: #E4F5EC;
+  --ink: #0F2B22;
+  --ink-dim: #56685F;
+  --flow: #189A6C;
+  --flow-dim: #0F7A54;
+  --coral: #D9603A;
+  --border: rgba(15, 43, 34, 0.12);
+  --header-bg: rgba(255, 255, 255, 0.85);
 }
 
 * { box-sizing: border-box; }
@@ -32,6 +49,7 @@ html, body {
   color: var(--ink);
   font-family: var(--font-body);
   scroll-behavior: smooth;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 #root { min-height: 100vh; }
