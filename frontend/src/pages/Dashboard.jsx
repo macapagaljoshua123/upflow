@@ -7,6 +7,7 @@ import FileCard from '../components/FileCard.jsx'
 import FolderCard from '../components/FolderCard.jsx'
 import UploadMenu from '../components/UploadMenu.jsx'
 import ShareModal from '../components/ShareModal.jsx'
+import SettingsModal from '../components/SettingsModal.jsx'
 import PromptModal from '../components/PromptModal.jsx'
 import ConfirmModal from '../components/ConfirmModal.jsx'
 import MoveToModal from '../components/MoveToModal.jsx'
@@ -29,11 +30,12 @@ export default function Dashboard() {
   const [searchInput, setSearchInput] = useState('') // what the person is typing, updates instantly
   const [search, setSearch] = useState('') // debounced value that actually triggers the fetch
   const [sort, setSort] = useState('new')
-  const [currentUser] = useState(() => getCurrentUser())
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser())
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedFileIds, setSelectedFileIds] = useState(() => new Set())
   const [selectedFolderIds, setSelectedFolderIds] = useState(() => new Set())
-  const [shareTarget, setShareTarget] = useState(null)
+  const [shareTargets, setShareTargets] = useState(null) // array of files being shared, or null
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [promptModal, setPromptModal] = useState(null) // { title, label, initialValue, confirmLabel, onConfirm }
   const [confirmModal, setConfirmModal] = useState(null) // { title, message, confirmLabel, onConfirm }
   const [moveModal, setMoveModal] = useState(null) // { itemName, currentParentId, excludeFolderId, onMove }
@@ -108,7 +110,7 @@ export default function Dashboard() {
         await copyFile(file.id)
         refresh()
       } else if (action === 'Share') {
-        setShareTarget(file)
+        setShareTargets([file])
       } else if (action === 'Rename') {
         setPromptModal({
           title: 'Rename file',
@@ -413,8 +415,8 @@ export default function Dashboard() {
   }
 
   function handleBulkShare() {
-    if (selectedFileObjs.length !== 1 || selectedFolderObjs.length !== 0) return
-    setShareTarget(selectedFileObjs[0])
+    if (selectedFileObjs.length === 0 || selectedFolderObjs.length !== 0) return
+    setShareTargets(selectedFileObjs)
   }
 
   async function handleBulkDownload() {
@@ -460,7 +462,7 @@ export default function Dashboard() {
           />
           <input ref={reuploadInputRef} type="file" accept=".html,.htm" hidden onChange={handleReuploadSelected} />
           <ThemeToggle />
-          <UserMenu name={currentUser?.name} email={currentUser?.email} onSignOut={handleSignOut} />
+          <UserMenu name={currentUser?.name} email={currentUser?.email} onSignOut={handleSignOut} onSettings={() => setSettingsOpen(true)} />
         </div>
       </header>
 
@@ -513,7 +515,7 @@ export default function Dashboard() {
                         <button
                           className="selection-action-btn"
                           onClick={handleBulkShare}
-                          disabled={selectedFileObjs.length !== 1 || selectedFolderObjs.length !== 0}
+                          disabled={selectedFileObjs.length === 0 || selectedFolderObjs.length > 0}
                           title="Share"
                         >
                           <ShareIcon /> Share
@@ -603,11 +605,19 @@ export default function Dashboard() {
         <span>Privacy · Terms © 2026 Upflow, from LightWeight Solutions</span>
       </footer>
 
-      {shareTarget && (
+      {shareTargets && (
         <ShareModal
-          file={shareTarget}
-          onClose={() => setShareTarget(null)}
+          files={shareTargets}
+          onClose={() => setShareTargets(null)}
           onShare={() => refresh()}
+        />
+      )}
+
+      {settingsOpen && (
+        <SettingsModal
+          user={currentUser}
+          onClose={() => setSettingsOpen(false)}
+          onUpdated={(updated) => setCurrentUser(updated)}
         />
       )}
 

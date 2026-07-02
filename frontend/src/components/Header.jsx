@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { getAuthToken, getCurrentUser, logout } from '../api/client.js'
 import UserMenu from './UserMenu.jsx'
 import ThemeToggle from './ThemeToggle.jsx'
+import SettingsModal from './SettingsModal.jsx'
 
 const NAV = [
   { label: 'Gallery', href: '#gallery' },
@@ -25,10 +26,12 @@ export function BrowserMark({ size = 24 }) {
 
 export default function Header() {
   const [open, setOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [userOverride, setUserOverride] = useState(null) // set after a Settings update so it reflects without a reload
   const navigate = useNavigate()
 
   const token = getAuthToken()
-  const user = token ? getCurrentUser() : null
+  const user = token ? (userOverride || getCurrentUser()) : null
   const isSignedIn = Boolean(token)
 
   function handleSignOut() {
@@ -39,7 +42,7 @@ export default function Header() {
 
   return (
     <header className="site-header">
-      <div className="container header-inner">
+      <div className="header-inner">
         <a href="#top" className="brand">
           <BrowserMark size={28} />
           <span className="brand-name">Upflow</span>
@@ -55,7 +58,7 @@ export default function Header() {
           <div className="auth-row">
             <Link to="/dashboard" className="btn btn-ghost btn-sm">Back to Dashboard</Link>
             <ThemeToggle />
-            <UserMenu name={user?.name} email={user?.email} onSignOut={handleSignOut} />
+            <UserMenu name={user?.name} email={user?.email} onSignOut={handleSignOut} onSettings={() => setSettingsOpen(true)} />
           </div>
         ) : (
           <div className="auth-row">
@@ -108,6 +111,14 @@ export default function Header() {
         </div>
       )}
 
+      {settingsOpen && (
+        <SettingsModal
+          user={user}
+          onClose={() => setSettingsOpen(false)}
+          onUpdated={(updated) => setUserOverride(updated)}
+        />
+      )}
+
       <style>{`
         .site-header {
           position: sticky;
@@ -117,7 +128,10 @@ export default function Header() {
           backdrop-filter: blur(10px);
           border-bottom: 1px solid var(--border);
         }
-        .header-inner { display: flex; align-items: center; justify-content: space-between; height: 72px; gap: 24px; }
+        .header-inner {
+          display: flex; align-items: center; justify-content: space-between; height: 72px; gap: 24px;
+          max-width: 1400px; margin: 0 auto; padding: 0 20px;
+        }
         .brand { display: flex; align-items: center; gap: 10px; }
         .brand-name { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
         .nav-desktop { display: flex; gap: 28px; flex: 1; justify-content: center; }

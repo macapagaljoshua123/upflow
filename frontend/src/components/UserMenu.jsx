@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
  * extraItems: optional [{ label, onClick, icon? }] rendered above the
  * built-in Settings/Sign out rows (e.g. "Back to Dashboard" on the landing page).
  */
-export default function UserMenu({ name, email, onSignOut, extraItems = [] }) {
+export default function UserMenu({ name, email, onSignOut, onSettings, extraItems = [] }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -59,7 +59,7 @@ export default function UserMenu({ name, email, onSignOut, extraItems = [] }) {
             </button>
           ))}
 
-          <button className="user-menu-item" role="menuitem" onClick={() => { setOpen(false) }}>
+          <button className="user-menu-item" role="menuitem" onClick={() => { setOpen(false); onSettings?.() }}>
             <SettingsIcon />
             <span>Settings</span>
           </button>

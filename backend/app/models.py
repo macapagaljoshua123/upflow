@@ -46,7 +46,11 @@ class VerificationCode(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=gen_uuid)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     code = Column(String(6), nullable=False)
-    purpose = Column(String(30), nullable=False, default="login")  # login | signup | reset_password
+    purpose = Column(String(30), nullable=False, default="login")  # login | signup | reset_password | change_email | change_password
+    # Holds the pending new email while a change_email code is outstanding,
+    # so /account/email/confirm knows which address to switch to once the
+    # code is verified. Unused for every other purpose.
+    new_value = Column(String(255), nullable=True)
     consumed = Column(Boolean, default=False, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, server_default=func.now())

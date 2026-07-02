@@ -293,7 +293,9 @@ async def share_file(file_id: uuid.UUID, payload: schemas.ShareRequest, db: Sess
         db.add(access)
         preview_url = f"{settings.frontend_url}/p/{f.slug}"
         try:
-            await send_share_invite(payload.invite_email, f.name, preview_url, user.name)
+            # Send the actual HTML file as an attachment, not just a link,
+            # so whatever the user shares lands directly in the recipient's inbox.
+            await send_share_invite(payload.invite_email, f.name, preview_url, user.name, file_content=f.content)
             invite_email_sent = True
         except MailNotConfiguredError as e:
             # Sharing itself still succeeds (the access row is saved) --

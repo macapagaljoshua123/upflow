@@ -2,8 +2,20 @@ import { useEffect, useState } from 'react'
 import Modal from './Modal.jsx'
 import { getAuthToken, shareFile, getFileAccessList } from '../api/client.js'
 
-export default function ShareModal({ file, onClose, onShare }) {
-  const [visibility, setVisibility] = useState(file?.visibility || 'private')
+/**
+ * Share modal. Accepts a `files` array (length 1 or more). With a single
+ * file it behaves like before — visibility toggle, copyable link, and the
+ * "people with access" list. With 2+ files, those single-file-only bits
+ * (link, visibility, access list) are hidden and it becomes a straight
+ * "send these files to this email" flow — each recipient gets every
+ * selected file as an actual HTML attachment, not just a link.
+ */
+export default function ShareModal({ files, onClose, onShare }) {
+  const list = files || []
+  const isMulti = list.length > 1
+  const single = list[0]
+
+  const [visibility, setVisibility] = useState(single?.visibility || 'private')
   const [email, setEmail] = useState('')
   const [copied, setCopied] = useState(false)
   const [accessList, setAccessList] = useState([])
@@ -11,17 +23,17 @@ export default function ShareModal({ file, onClose, onShare }) {
   const [sendingInvite, setSendingInvite] = useState(false)
   const [banner, setBanner] = useState(null) // { type: 'success' | 'error', text }
 
-  const baseLink = file?.previewUrl || `${window.location.origin}/p/${file?.slug || ''}`
+  const baseLink = single?.previewUrl || `${window.location.origin}/p/${single?.slug || ''}`
   const link = visibility === 'private' ? `${baseLink}?token=${getAuthToken() || ''}` : baseLink
 
   useEffect(() => {
     let cancelled = false
-    if (!file?.id) return
-    getFileAccessList(file.id)
+    if (isMulti || !single?.id) return
+    getFileAccessList(single.id)
       .then((data) => !cancelled && setAccessList(data))
       .catch(() => {})
     return () => { cancelled = true }
-  }, [file?.id])
+  }, [isMulti, single?.id])
 
   function handleCopy() {
     navigator.clipboard?.writeText(link)
@@ -30,12 +42,12 @@ export default function ShareModal({ file, onClose, onShare }) {
   }
 
   async function handleVisibilityChange(next) {
-    if (next === visibility || savingVisibility) return
+    if (next === visibility || savingVisibility || !single) return
     setVisibility(next)
     setSavingVisibility(true)
     setBanner(null)
     try {
-      await shareFile(file.id, { visibility: next })
+      await shareFile(single.id, { visibility: next })
       onShare?.()
     } catch (err) {
       setVisibility(visibility) // revert on failure
@@ -46,19 +58,30 @@ export default function ShareModal({ file, onClose, onShare }) {
   }
 
   async function handleInvite() {
-    if (!email || sendingInvite) return
+    if (!email || sendingInvite || list.length === 0) return
     setSendingInvite(true)
     setBanner(null)
     try {
-      const result = await shareFile(file.id, { visibility, invite_email: email })
-      if (result.invite_email_sent === false) {
-        setBanner({ type: 'error', text: result.invite_email_error || `${email} now has access, but the invite email failed to send.` })
+      // Fire off one share call per selected file so the recipient gets
+      // every file as its own emailed attachment.
+      const results = await Promise.all(
+        list.map((f) => shareFile(f.id, { visibility: isMulti ? undefined : visibility, invite_email: email }))
+      )
+      const anyFailed = results.some((r) => r.invite_email_sent === false)
+      if (anyFailed) {
+        const failedMsg = results.find((r) => r.invite_email_sent === false)?.invite_email_error
+        setBanner({ type: 'error', text: failedMsg || `${email} now has access, but the invite email failed to send.` })
       } else {
-        setBanner({ type: 'success', text: `Invite sent to ${email}.` })
+        setBanner({
+          type: 'success',
+          text: isMulti ? `${list.length} files sent to ${email}.` : `Invite sent to ${email}.`,
+        })
       }
       setEmail('')
-      const list = await getFileAccessList(file.id)
-      setAccessList(list)
+      if (!isMulti && single?.id) {
+        const accData = await getFileAccessList(single.id)
+        setAccessList(accData)
+      }
       onShare?.()
     } catch (err) {
       setBanner({ type: 'error', text: err?.response?.data?.detail || "Couldn't send that invite. Try again." })
@@ -67,31 +90,43 @@ export default function ShareModal({ file, onClose, onShare }) {
     }
   }
 
-  return (
-    <Modal title={`Share \u201c${file?.name}\u201d`} onClose={onClose} width={440} labelledBy="share-modal-title">
-      <div className="visibility-toggle">
-        <button className={visibility === 'private' ? 'active' : ''} disabled={savingVisibility} onClick={() => handleVisibilityChange('private')}>
-          Private
-        </button>
-        <button className={visibility === 'public' ? 'active' : ''} disabled={savingVisibility} onClick={() => handleVisibilityChange('public')}>
-          Public
-        </button>
-      </div>
-      <p className="visibility-hint">
-        {visibility === 'public'
-          ? 'Anyone with the link can open this preview.'
-          : "Only the owner and invited people can open this. \u201cCopy link\u201d below appends your session token so you can test the link yourself \u2014 don't send that version to anyone else."}
-      </p>
+  const title = isMulti ? `Share ${list.length} files` : `Share \u201c${single?.name}\u201d`
 
-      <div className="link-row">
-        <input readOnly value={link} />
-        <button className="btn btn-ghost btn-sm" onClick={handleCopy}>{copied ? 'Copied' : 'Copy link'}</button>
-      </div>
+  return (
+    <Modal title={title} onClose={onClose} width={440} labelledBy="share-modal-title">
+      {!isMulti && (
+        <>
+          <div className="visibility-toggle">
+            <button className={visibility === 'private' ? 'active' : ''} disabled={savingVisibility} onClick={() => handleVisibilityChange('private')}>
+              Private
+            </button>
+            <button className={visibility === 'public' ? 'active' : ''} disabled={savingVisibility} onClick={() => handleVisibilityChange('public')}>
+              Public
+            </button>
+          </div>
+          <p className="visibility-hint">
+            {visibility === 'public'
+              ? 'Anyone with the link can open this preview.'
+              : "Only the owner and invited people can open this. \u201cCopy link\u201d below appends your session token so you can test the link yourself \u2014 don't send that version to anyone else."}
+          </p>
+
+          <div className="link-row">
+            <input readOnly value={link} />
+            <button className="btn btn-ghost btn-sm" onClick={handleCopy}>{copied ? 'Copied' : 'Copy link'}</button>
+          </div>
+        </>
+      )}
+
+      {isMulti && (
+        <p className="visibility-hint">
+          Sending <strong>{list.length}</strong> files: {list.map((f) => f.name).join(', ')}
+        </p>
+      )}
 
       <div className="invite-row">
         <input
           type="email"
-          placeholder="Add people by email"
+          placeholder={isMulti ? "Send files to this email" : "Add people by email"}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleInvite() }}
@@ -100,22 +135,27 @@ export default function ShareModal({ file, onClose, onShare }) {
           {sendingInvite ? 'Sending\u2026' : 'Send'}
         </button>
       </div>
+      <p className="visibility-hint" style={{ marginTop: -6 }}>
+        The actual HTML {isMulti ? 'files are' : 'file is'} attached to the email, along with a live preview link.
+      </p>
 
       {banner && <p className={`share-banner ${banner.type}`}>{banner.text}</p>}
 
-      <div className="access-list">
-        <span className="access-title">People with access</span>
-        {accessList.length === 0 ? (
-          <p className="access-empty">Just you, for now.</p>
-        ) : (
-          accessList.map((person, i) => (
-            <div key={`${person.email || person.name}-${i}`} className="access-row">
-              <span className="access-name" title={person.email || ''}>{person.name}</span>
-              <span className="access-role">{person.role}</span>
-            </div>
-          ))
-        )}
-      </div>
+      {!isMulti && (
+        <div className="access-list">
+          <span className="access-title">People with access</span>
+          {accessList.length === 0 ? (
+            <p className="access-empty">Just you, for now.</p>
+          ) : (
+            accessList.map((person, i) => (
+              <div key={`${person.email || person.name}-${i}`} className="access-row">
+                <span className="access-name" title={person.email || ''}>{person.name}</span>
+                <span className="access-role">{person.role}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       <style>{`
         .visibility-toggle { display: flex; background: var(--surface-2); border-radius: 999px; padding: 4px; gap: 4px; margin-bottom: 10px; }

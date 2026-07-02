@@ -127,6 +127,31 @@ class AccessEntryOut(BaseModel):
         from_attributes = True
 
 
+class UpdateNameRequest(BaseModel):
+    name: str
+
+
+class RequestEmailChangeRequest(BaseModel):
+    new_email: EmailStr
+
+
+class ConfirmEmailChangeRequest(BaseModel):
+    code: str
+
+
+class RequestPasswordChangeRequest(BaseModel):
+    current_password: str
+
+
+class ConfirmPasswordChangeRequest(BaseModel):
+    code: str
+    new_password: str
+
+
+class PendingChangeOut(BaseModel):
+    message: str
+
+
 class UploadLogOut(BaseModel):
     action: str
     detail: Optional[str]

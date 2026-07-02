@@ -33,6 +33,14 @@ export function getCurrentUser() {
   }
 }
 
+// Overwrites the cached user (name/email) after a Settings change, since
+// getCurrentUser() reads straight from localStorage and nothing else
+// refreshes it on its own.
+export function updateStoredUser(user) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user))
+  return user
+}
+
 export async function signup(payload) {
   const { data } = await client.post('/auth/signup', payload)
   // Signup never returns a token directly anymore — it always requires
@@ -172,5 +180,33 @@ export async function getFileAccessList(fileId) {
 
 export async function getUploadHistory() {
   const { data } = await client.get('/files/history')
+  return data
+}
+
+export async function updateName(name) {
+  const { data } = await client.patch('/account/name', { name })
+  updateStoredUser(data)
+  return data
+}
+
+export async function requestEmailChange(newEmail) {
+  const { data } = await client.post('/account/email/request', { new_email: newEmail })
+  return data
+}
+
+export async function confirmEmailChange(code) {
+  const { data } = await client.post('/account/email/confirm', { code })
+  updateStoredUser(data)
+  return data
+}
+
+export async function requestPasswordChange(currentPassword) {
+  const { data } = await client.post('/account/password/request', { current_password: currentPassword })
+  return data
+}
+
+export async function confirmPasswordChange(code, newPassword) {
+  const { data } = await client.post('/account/password/confirm', { code, new_password: newPassword })
+  updateStoredUser(data)
   return data
 }

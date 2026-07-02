@@ -21,10 +21,15 @@ CREATE TABLE verification_codes (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     code VARCHAR(6) NOT NULL,
     purpose VARCHAR(30) NOT NULL DEFAULT 'login',
+    -- Pending new email address while a change_email code is outstanding.
+    -- Unused for every other purpose (login/signup/reset_password/change_password).
+    new_value VARCHAR(255),
     consumed BOOLEAN NOT NULL DEFAULT FALSE,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
+-- Migration for existing databases created before this column existed:
+-- ALTER TABLE verification_codes ADD COLUMN new_value VARCHAR(255);
 
 CREATE TABLE trusted_devices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
